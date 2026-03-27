@@ -101,6 +101,9 @@ export default function Home() {
             <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors">
               Work
             </Link>
+            <Link href="/roast" className="text-sm text-muted hover:text-foreground transition-colors">
+              Brand Roast
+            </Link>
             <a href="#how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">
               How it works
             </a>
@@ -295,6 +298,37 @@ export default function Home() {
                 <span className="font-medium">{row.arto}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Brand Roast CTA */}
+      <section className="border-t border-border bg-zinc-50">
+        <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+          <div className="relative overflow-hidden rounded-2xl bg-foreground p-10 text-white md:p-16">
+            <div className="relative z-10 flex flex-col items-center gap-8 md:flex-row md:justify-between">
+              <div className="max-w-lg">
+                <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-400">
+                  Free tool
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                  Think your brand is solid?
+                  <br />
+                  <span className="text-zinc-400">Prove it.</span>
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-zinc-400">
+                  Get a brutally honest analysis of your brand across Strategy,
+                  Creativity, Narrative, and Digital — scored with the same methodology
+                  we use for Fortune 500 clients. No signup required.
+                </p>
+              </div>
+              <Link
+                href="/roast"
+                className="flex-shrink-0 rounded-full bg-white px-8 py-4 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+              >
+                Roast My Brand
+              </Link>
+            </div>
           </div>
         </div>
       </section>
