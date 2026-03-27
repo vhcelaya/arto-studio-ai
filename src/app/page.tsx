@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 const pillars = [
   {
@@ -97,6 +98,9 @@ export default function Home() {
             </span>
           </div>
           <div className="hidden items-center gap-8 md:flex">
+            <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors">
+              Work
+            </Link>
             <a href="#how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">
               How it works
             </a>
