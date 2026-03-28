@@ -104,9 +104,6 @@ export default function Home() {
             <Link href="/roast" className="text-sm text-muted hover:text-foreground transition-colors">
               Brand Roast
             </Link>
-            <a href="#how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">
-              How it works
-            </a>
             <a href="#pricing" className="text-sm text-muted hover:text-foreground transition-colors">
               Pricing
             </a>

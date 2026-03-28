@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 // Portfolio data from ARTO Portafolio 2026 (Notion)
@@ -40,7 +41,7 @@ const projects = [
     tags: ["Corporativo", "B2B", "Identidad Visual", "Estrategia", "Digital"],
     description:
       "Brand ecosystem for Grupo Proeza. Structured a consistent brand system across business units and channels, creating visual clarity and narrative coherence.",
-    image: null,
+    image: "/work/grupo-proeza-ecosystem.gif",
   },
   {
     slug: "poder-partners",
@@ -118,7 +119,7 @@ const projects = [
     tags: ["Corporativo", "B2B", "Digital"],
     description:
       "Comprehensive brand, web, and video project. Strengthened the group's visibility and communication of its purpose and business units.",
-    image: null,
+    image: "/work/grupo-proeza-2019.png",
   },
   {
     slug: "niki-b",
@@ -144,7 +145,7 @@ const projects = [
     tags: ["Identidad Visual"],
     description:
       "Naming and brand identity. Defined the name and built a clear, consistent visual system ready to scale across touchpoints.",
-    image: null,
+    image: "/work/vehement.png",
   },
   {
     slug: "mezcal-inmortal",
@@ -183,7 +184,7 @@ const projects = [
     tags: ["Alimentos", "Corporativo", "Identidad Visual", "Estrategia"],
     description:
       "Brand strategy and redesign for Sigma Alimentos' meat cuts brand. Consumer segmentation, simplified identity, and improved shelf clarity.",
-    image: null,
+    image: "/work/comnor.jpg",
   },
   {
     slug: "loly-in-the-sky",
@@ -209,7 +210,7 @@ const projects = [
     tags: ["Identidad Visual"],
     description:
       "Branding and product design for Zirker. Defined a clear identity and design language for the product, ensuring consistency and scalability across touchpoints.",
-    image: null,
+    image: "/work/zirker.gif",
   },
   {
     slug: "celaya-brothers-gallery",
@@ -274,7 +275,7 @@ const projects = [
     tags: ["Alimentos", "Retail", "Digital", "Packaging"],
     description:
       "Branding and web development for an artisanal gift basket brand. Clear customization experience aligned with the handcrafted proposition.",
-    image: null,
+    image: "/work/basket.jpg",
   },
   {
     slug: "julee",
@@ -495,7 +496,7 @@ const projects = [
     tags: ["Identidad Visual"],
     description:
       "Brand identity standardization. Clear and consistent visual system across physical and digital touchpoints.",
-    image: null,
+    image: "/work/blue-box.jpg",
   },
 ];
 
@@ -510,34 +511,42 @@ export default function WorkPage() {
   return (
     <div className="flex flex-col flex-1 bg-white">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur-sm">
+      <nav className="sticky top-0 z-50 border-b border-border bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3">
-            <img
+            <Image
               src="/brand/arto-logo-black.png"
               alt="ARTO"
+              width={80}
+              height={24}
               className="h-6 w-auto"
             />
-            <span className="text-sm font-medium tracking-wide text-zinc-500">
+            <span className="text-sm font-medium tracking-wide text-muted">
               STUDIO AI
             </span>
           </Link>
           <div className="hidden items-center gap-8 md:flex">
             <Link
               href="/work"
-              className="text-sm font-medium text-zinc-900"
+              className="text-sm font-medium text-foreground transition-colors"
             >
               Work
             </Link>
             <Link
+              href="/roast"
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              Brand Roast
+            </Link>
+            <Link
               href="/#pricing"
-              className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+              className="text-sm text-muted hover:text-foreground transition-colors"
             >
               Pricing
             </Link>
             <Link
               href="/#waitlist"
-              className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+              className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
             >
               Join Waitlist
             </Link>
