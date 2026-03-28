@@ -14,6 +14,7 @@ const projects = [
     tags: ["Corporativo", "B2B", "Digital", "Identidad Visual"],
     description:
       "Branding and web development for Grupo Proeza. Strengthened the brand system and translated it into a clear, responsive web experience that communicates the group's platform and business units.",
+    image: "/work/grupo-proeza-2025.gif",
   },
   {
     slug: "gse-biomedical",
@@ -26,6 +27,7 @@ const projects = [
     tags: ["Corporativo", "Identidad Visual", "Estrategia"],
     description:
       "Brand identity for GSE Biomedical in the health and medical technology sector. Created a clear, professional visual identity to build recognition and credibility in a specialized market.",
+    image: "/work/gse-biomedical.jpg",
   },
   {
     slug: "grupo-proeza-ecosystem",
@@ -38,6 +40,7 @@ const projects = [
     tags: ["Corporativo", "B2B", "Identidad Visual", "Estrategia", "Digital"],
     description:
       "Brand ecosystem for Grupo Proeza. Structured a consistent brand system across business units and channels, creating visual clarity and narrative coherence.",
+    image: null,
   },
   {
     slug: "poder-partners",
@@ -50,6 +53,7 @@ const projects = [
     tags: ["Corporativo", "Identidad Visual"],
     description:
       "Branding for a technology investment vehicle. Built a contemporary, sophisticated visual identity that communicates vision, solidity, and purpose.",
+    image: "/work/poder-partners.jpg",
   },
   {
     slug: "mr-fox",
@@ -62,6 +66,7 @@ const projects = [
     tags: ["Digital", "Retail"],
     description:
       "UI design and Shopify development focused on clarity and conversion. Created a stable, scalable e-commerce platform that elevated user experience.",
+    image: "/work/mr-fox.jpg",
   },
   {
     slug: "kavak-showroom",
@@ -74,6 +79,7 @@ const projects = [
     tags: ["Corporativo", "Retail"],
     description:
       "Brand strategy and showroom experience for Kavak. Developed narrative, visual cues, and a coherent physical experience for customers and visitors.",
+    image: "/work/kavak-showroom.jpg",
   },
   {
     slug: "break-off",
@@ -86,6 +92,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Full brand ecosystem — strategy, visual identity, and web platform — for a global digital services company. Built to compete across multiple markets.",
+    image: "/work/break-off.jpg",
   },
   {
     slug: "el-mural-mas-fino",
@@ -98,6 +105,7 @@ const projects = [
     tags: ["Alimentos", "Identidad Visual", "Corporativo", "Retail"],
     description:
       "Monumental mural designed by Pedro Friedeberg for Cerveza Corona. Art, brand, and public space merged into a memorable urban experience.",
+    image: "/work/el-mural-mas-fino.webp",
   },
   {
     slug: "grupo-proeza-2019",
@@ -110,6 +118,7 @@ const projects = [
     tags: ["Corporativo", "B2B", "Digital"],
     description:
       "Comprehensive brand, web, and video project. Strengthened the group's visibility and communication of its purpose and business units.",
+    image: null,
   },
   {
     slug: "niki-b",
@@ -122,6 +131,7 @@ const projects = [
     tags: ["Digital", "Retail"],
     description:
       "Brand identity and Shopify e-commerce for a New York retail brand. Created a cohesive digital presence with a focus on usability and aesthetics.",
+    image: "/work/niki-b.jpg",
   },
   {
     slug: "vehement",
@@ -134,6 +144,7 @@ const projects = [
     tags: ["Identidad Visual"],
     description:
       "Naming and brand identity. Defined the name and built a clear, consistent visual system ready to scale across touchpoints.",
+    image: null,
   },
   {
     slug: "mezcal-inmortal",
@@ -146,6 +157,7 @@ const projects = [
     tags: ["Alimentos", "Identidad Visual"],
     description:
       "Branding and illustration for an artisanal mezcal brand. Distinctive visual language that communicates tradition and character in a competitive market.",
+    image: "/work/mezcal-inmortal.jpg",
   },
   {
     slug: "muvop",
@@ -158,6 +170,7 @@ const projects = [
     tags: ["Corporativo", "Identidad Visual"],
     description:
       "Branding and product design for a financial institution empowering women through credit access and financial education.",
+    image: "/work/muvop.png",
   },
   {
     slug: "comnor",
@@ -170,6 +183,7 @@ const projects = [
     tags: ["Alimentos", "Corporativo", "Identidad Visual", "Estrategia"],
     description:
       "Brand strategy and redesign for Sigma Alimentos' meat cuts brand. Consumer segmentation, simplified identity, and improved shelf clarity.",
+    image: null,
   },
   {
     slug: "loly-in-the-sky",
@@ -182,6 +196,20 @@ const projects = [
     tags: ["Digital", "Retail"],
     description:
       "UI/UX redesign and Shopify store for a beloved Mexican shoe brand. Translated the physical brand personality into a digital shopping experience.",
+    image: "/work/loly-in-the-sky.png",
+  },
+  {
+    slug: "zirker",
+    name: "Zirker",
+    client: "Zirker",
+    year: "2018",
+    categories: ["Branding", "Product Design"],
+    industry: "Technology",
+    location: "Monterrey, MX",
+    tags: ["Identidad Visual"],
+    description:
+      "Branding and product design for Zirker. Defined a clear identity and design language for the product, ensuring consistency and scalability across touchpoints.",
+    image: null,
   },
   {
     slug: "celaya-brothers-gallery",
@@ -194,6 +222,7 @@ const projects = [
     tags: ["Digital"],
     description:
       "Web development for a contemporary art gallery. Clean architecture and elegant navigation optimized for exhibitions and artist profiles.",
+    image: "/work/celaya-brothers-gallery.jpg",
   },
   {
     slug: "aisha-sufe",
@@ -206,6 +235,7 @@ const projects = [
     tags: ["Digital", "Retail"],
     description:
       "Branding and e-commerce for a creative art and products brand. Built a digital platform to grow the offering and reach new audiences.",
+    image: "/work/aisha-sufe.jpg",
   },
   {
     slug: "mlab-metalsa",
@@ -218,6 +248,7 @@ const projects = [
     tags: ["Corporativo", "Industrial", "B2B", "Digital"],
     description:
       "Branding and UI system for Metalsa's innovation lab. Created a distinctive tech-forward identity with coherent interface language.",
+    image: "/work/mlab-metalsa.jpg",
   },
   {
     slug: "galvasid",
@@ -230,6 +261,7 @@ const projects = [
     tags: ["Industrial", "B2B", "Corporativo", "Identidad Visual", "Estrategia"],
     description:
       "Logo redesign and brand strategy for an industrial company. Refreshed identity with strategic guidelines for market positioning.",
+    image: "/work/galvasid.jpg",
   },
   {
     slug: "basket",
@@ -242,6 +274,7 @@ const projects = [
     tags: ["Alimentos", "Retail", "Digital", "Packaging"],
     description:
       "Branding and web development for an artisanal gift basket brand. Clear customization experience aligned with the handcrafted proposition.",
+    image: null,
   },
   {
     slug: "julee",
@@ -254,6 +287,137 @@ const projects = [
     tags: ["Digital", "Retail", "Identidad Visual"],
     description:
       "Full brand creation — naming, identity, UI, and product design. Built a distinctive and coherent visual system for retail growth.",
+    image: "/work/julee.jpg",
+  },
+  {
+    slug: "tres-mas-dos",
+    name: "Tres Más Dos",
+    client: "Tres Más Dos",
+    year: "2016",
+    categories: ["Branding", "UI Design", "Web Development"],
+    industry: "Servicios",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual"],
+    description:
+      "Branding, UI design, and web development. Built a coherent digital presence optimized for communication and value proposition.",
+    image: null,
+  },
+  {
+    slug: "lua-luz-en-arquitectura",
+    name: "LUA Luz en Arquitectura",
+    client: "LUA",
+    year: "2016",
+    categories: ["UI Design", "Web Development"],
+    industry: "Servicios",
+    location: "Mexico City, MX",
+    tags: ["Digital"],
+    description:
+      "UI design and web development for a lighting architecture studio. Clean interface and elegant navigation for portfolio and services showcase.",
+    image: null,
+  },
+  {
+    slug: "load",
+    name: "Load",
+    client: "Load",
+    year: "2016",
+    categories: ["Branding", "UI Design", "Web Development"],
+    industry: "Technology",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual"],
+    description:
+      "Integrated branding, interface design, and web development. Built a consistent brand identity and clear digital experience.",
+    image: null,
+  },
+  {
+    slug: "jetboards",
+    name: "Jetboards",
+    client: "Jetboards",
+    year: "2016",
+    categories: ["Branding", "Web Development"],
+    industry: "Technology",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual"],
+    description:
+      "Brand identity and web platform for a technology company. Strengthened digital presence with clear brand communication.",
+    image: null,
+  },
+  {
+    slug: "hagane",
+    name: "Hagane",
+    client: "Hagane",
+    year: "2016",
+    categories: ["Branding"],
+    industry: "Industrial",
+    location: "Monterrey, MX",
+    tags: ["Industrial", "B2B", "Corporativo", "Identidad Visual"],
+    description:
+      "Brand identity for an industrial company. Created a solid visual system to strengthen market positioning and recognition.",
+    image: null,
+  },
+  {
+    slug: "florence",
+    name: "Florence",
+    client: "Florence",
+    year: "2016",
+    categories: ["Branding"],
+    industry: "Servicios",
+    location: "Monterrey, MX",
+    tags: ["Corporativo", "Identidad Visual"],
+    description:
+      "Complete brand identity to establish a strong, distinctive market presence in Monterrey's services sector.",
+    image: null,
+  },
+  {
+    slug: "tikaa",
+    name: "Tikaa",
+    client: "Tikaa",
+    year: "2015",
+    categories: ["Branding", "Packaging"],
+    industry: "Alimentos",
+    location: "Monterrey, MX",
+    tags: ["Packaging", "Identidad Visual"],
+    description:
+      "Branding and packaging for an organic products brand. Coherent visual identity and clear shelf language communicating trust and quality.",
+    image: null,
+  },
+  {
+    slug: "the-misc-forest",
+    name: "The Misc Forest",
+    client: "The Misc Forest",
+    year: "2015",
+    categories: ["Branding", "UI Design", "Web Development"],
+    industry: "Servicios",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual"],
+    description:
+      "Integrated branding, UI design, and web development. Built a solid visual identity and coherent digital experience across touchpoints.",
+    image: null,
+  },
+  {
+    slug: "locker",
+    name: "Locker",
+    client: "Locker",
+    year: "2015",
+    categories: ["Branding", "UI Design", "Web Development"],
+    industry: "Technology",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual"],
+    description:
+      "Branding, interface design, and web development for a technology platform. Consistent brand identity and improved digital user experience.",
+    image: null,
+  },
+  {
+    slug: "optime",
+    name: "Optime",
+    client: "Optime",
+    year: "2015",
+    categories: ["Branding", "Web Development"],
+    industry: "Industrial",
+    location: "Monterrey, MX",
+    tags: ["Corporativo", "Identidad Visual", "Digital", "B2B"],
+    description:
+      "Branding and web development for an industrial company. Distinctive and consistent presence, ready to scale with new applications.",
+    image: null,
   },
   {
     slug: "call-us-whatever",
@@ -266,6 +430,7 @@ const projects = [
     tags: ["Identidad Visual", "Digital"],
     description:
       "Branding, UI, and web development for a Monterrey fashion and lifestyle brand. Unified identity and digital experience.",
+    image: "/work/call-us-whatever.jpg",
   },
   {
     slug: "distrito",
@@ -278,6 +443,7 @@ const projects = [
     tags: ["Identidad Visual"],
     description:
       "Brand identity for Monterrey's innovation and entrepreneurship ecosystem initiative. Clear communication of community purpose.",
+    image: "/work/distrito.jpg",
   },
   {
     slug: "don-cortes",
@@ -290,6 +456,46 @@ const projects = [
     tags: ["Digital", "Retail"],
     description:
       "Branding and online store for a men's accessories brand. Optimized shopping experience aligned with brand identity.",
+    image: "/work/don-cortes.jpg",
+  },
+  {
+    slug: "maxis",
+    name: "Maxis",
+    client: "Maxis",
+    year: "2014",
+    categories: ["Branding", "UI Design", "Online Store", "Web Development"],
+    industry: "Retail",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Retail", "Identidad Visual"],
+    description:
+      "Integrated branding, UI design, and e-commerce development. Coherent digital experience aligned with brand identity to drive online conversion.",
+    image: null,
+  },
+  {
+    slug: "lvl-projects",
+    name: "LVL",
+    client: "LVL Projects",
+    year: "2014",
+    categories: ["Branding", "Web Development"],
+    industry: "Industrial",
+    location: "Monterrey, MX",
+    tags: ["Digital", "Identidad Visual", "Corporativo", "B2B"],
+    description:
+      "Brand identity and web platform for an industrial projects company. Improved visibility and streamlined client interaction.",
+    image: null,
+  },
+  {
+    slug: "blue-box",
+    name: "Blue Box",
+    client: "Blue Box",
+    year: "2014",
+    categories: ["Branding"],
+    industry: "Servicios",
+    location: "Monterrey, MX",
+    tags: ["Identidad Visual"],
+    description:
+      "Brand identity standardization. Clear and consistent visual system across physical and digital touchpoints.",
+    image: null,
   },
 ];
 
@@ -400,38 +606,56 @@ export default function WorkPage() {
       {/* Project Grid */}
       <section>
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2">
             {projects.map((project) => (
               <article
                 key={project.slug}
-                className="group rounded-2xl border border-zinc-200 p-6 transition-all hover:border-zinc-400 hover:shadow-sm"
+                className="group overflow-hidden rounded-2xl border border-zinc-200 transition-all hover:border-zinc-400 hover:shadow-sm"
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400">
-                    {project.year}
-                  </span>
-                  <span className="text-xs text-zinc-400">
-                    {project.location}
-                  </span>
-                </div>
-                <h2 className="text-xl font-bold tracking-tight group-hover:text-zinc-600 transition-colors">
-                  {project.name}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-zinc-500">
-                  {project.client}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-500 line-clamp-3">
-                  {project.description}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {project.categories.slice(0, 3).map((cat) => (
-                    <span
-                      key={cat}
-                      className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600"
-                    >
-                      {cat}
+                {project.image ? (
+                  <div className="aspect-[16/10] overflow-hidden bg-zinc-100">
+                    <img
+                      src={project.image}
+                      alt={project.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-[16/10] flex items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-800">
+                    <span className="text-3xl md:text-4xl font-bold tracking-tight text-zinc-700 select-none">
+                      {project.name}
                     </span>
-                  ))}
+                  </div>
+                )}
+                <div className="p-6">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-400">
+                      {project.year}
+                    </span>
+                    <span className="text-xs text-zinc-400">
+                      {project.location}
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold tracking-tight group-hover:text-zinc-600 transition-colors">
+                    {project.name}
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-zinc-500">
+                    {project.client}
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-500 line-clamp-3">
+                    {project.description}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {project.categories.slice(0, 3).map((cat) => (
+                      <span
+                        key={cat}
+                        className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600"
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </article>
             ))}
