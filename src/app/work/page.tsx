@@ -301,7 +301,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Branding, UI design, and web development. Built a coherent digital presence optimized for communication and value proposition.",
-    image: null,
+    image: "/work/tres-mas-dos.png",
   },
   {
     slug: "lua-luz-en-arquitectura",
@@ -314,7 +314,7 @@ const projects = [
     tags: ["Digital"],
     description:
       "UI design and web development for a lighting architecture studio. Clean interface and elegant navigation for portfolio and services showcase.",
-    image: null,
+    image: "/work/lua.jpg",
   },
   {
     slug: "load",
@@ -327,7 +327,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Integrated branding, interface design, and web development. Built a consistent brand identity and clear digital experience.",
-    image: null,
+    image: "/work/load.jpg",
   },
   {
     slug: "jetboards",
@@ -340,7 +340,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Brand identity and web platform for a technology company. Strengthened digital presence with clear brand communication.",
-    image: null,
+    image: "/work/jetboards.jpg",
   },
   {
     slug: "hagane",
@@ -353,7 +353,7 @@ const projects = [
     tags: ["Industrial", "B2B", "Corporativo", "Identidad Visual"],
     description:
       "Brand identity for an industrial company. Created a solid visual system to strengthen market positioning and recognition.",
-    image: null,
+    image: "/work/hagane.jpg",
   },
   {
     slug: "florence",
@@ -366,7 +366,7 @@ const projects = [
     tags: ["Corporativo", "Identidad Visual"],
     description:
       "Complete brand identity to establish a strong, distinctive market presence in Monterrey's services sector.",
-    image: null,
+    image: "/work/florence.jpg",
   },
   {
     slug: "tikaa",
@@ -379,7 +379,7 @@ const projects = [
     tags: ["Packaging", "Identidad Visual"],
     description:
       "Branding and packaging for an organic products brand. Coherent visual identity and clear shelf language communicating trust and quality.",
-    image: null,
+    image: "/work/tikaa.png",
   },
   {
     slug: "the-misc-forest",
@@ -392,7 +392,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Integrated branding, UI design, and web development. Built a solid visual identity and coherent digital experience across touchpoints.",
-    image: null,
+    image: "/work/the-misc-forest.jpg",
   },
   {
     slug: "locker",
@@ -405,7 +405,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual"],
     description:
       "Branding, interface design, and web development for a technology platform. Consistent brand identity and improved digital user experience.",
-    image: null,
+    image: "/work/locker.jpg",
   },
   {
     slug: "optime",
@@ -418,7 +418,7 @@ const projects = [
     tags: ["Corporativo", "Identidad Visual", "Digital", "B2B"],
     description:
       "Branding and web development for an industrial company. Distinctive and consistent presence, ready to scale with new applications.",
-    image: null,
+    image: "/work/optime.jpg",
   },
   {
     slug: "call-us-whatever",
@@ -470,7 +470,7 @@ const projects = [
     tags: ["Digital", "Retail", "Identidad Visual"],
     description:
       "Integrated branding, UI design, and e-commerce development. Coherent digital experience aligned with brand identity to drive online conversion.",
-    image: null,
+    image: "/work/maxis.jpg",
   },
   {
     slug: "lvl-projects",
@@ -483,7 +483,7 @@ const projects = [
     tags: ["Digital", "Identidad Visual", "Corporativo", "B2B"],
     description:
       "Brand identity and web platform for an industrial projects company. Improved visibility and streamlined client interaction.",
-    image: null,
+    image: "/work/lvl.jpg",
   },
   {
     slug: "blue-box",
