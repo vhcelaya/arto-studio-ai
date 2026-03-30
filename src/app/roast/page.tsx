@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -161,15 +162,147 @@ function ScoreBar({ label, score, roast }: { label: string; score: number; roast
   );
 }
 
-/* ── Main page ────────────────────────────────────────── */
+/* ── Share helpers ───────────────────────────────────── */
 
-export default function BrandRoast() {
+function buildShareUrl(brand: string, result: RoastResult): string {
+  const params = new URLSearchParams({
+    brand,
+    score: String(result.overall),
+    s: String(result.strategy.score),
+    c: String(result.creativity.score),
+    n: String(result.narrative.score),
+    d: String(result.digital.score),
+  });
+  return `${window.location.origin}/roast?${params.toString()}`;
+}
+
+function parseSharedResult(params: URLSearchParams): { brand: string; result: RoastResult } | null {
+  const brand = params.get("brand");
+  const score = params.get("score");
+  const s = params.get("s");
+  const c = params.get("c");
+  const n = params.get("n");
+  const d = params.get("d");
+
+  if (!brand || !score || !s || !c || !n || !d) return null;
+
+  const sNum = Number(s);
+  const cNum = Number(c);
+  const nNum = Number(n);
+  const dNum = Number(d);
+
+  if ([sNum, cNum, nNum, dNum].some((v) => isNaN(v) || v < 0 || v > 10)) return null;
+
+  const seed = hash(brand.toLowerCase());
+
+  return {
+    brand,
+    result: {
+      overall: Number(score),
+      strategy: { score: sNum, roast: pick(strategyRoasts, seed) },
+      creativity: { score: cNum, roast: pick(creativityRoasts, seed >> 2) },
+      narrative: { score: nNum, roast: pick(narrativeRoasts, seed >> 4) },
+      digital: { score: dNum, roast: pick(digitalRoasts, hash(brand)) },
+      verdict: pick(verdicts, seed >> 1),
+      improvements: (() => {
+        const imps = [
+          pick(improvementPool, seed),
+          pick(improvementPool, seed + 3),
+          pick(improvementPool, seed + 7),
+        ];
+        const unique = [...new Set(imps)];
+        while (unique.length < 3) {
+          unique.push(pick(improvementPool, seed + unique.length + 10));
+        }
+        return unique.slice(0, 3);
+      })(),
+    },
+  };
+}
+
+/* ── Share button component ─────────────────────────── */
+
+function ShareButton({ brand, result }: { brand: string; result: RoastResult }) {
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = buildShareUrl(brand, result);
+  const shareText = `My brand "${brand}" just got roasted by ARTO Studio AI: ${result.overall}/10. Think yours can do better?`;
+
+  async function handleShare() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Brand Roast: ${brand}`, text: shareText, url: shareUrl });
+        return;
+      } catch {
+        // User cancelled or share failed, fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const input = document.createElement("input");
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-zinc-50"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="18" cy="5" r="3" />
+        <circle cx="6" cy="12" r="3" />
+        <circle cx="18" cy="19" r="3" />
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+      </svg>
+      {copied ? "Link copied!" : "Share your roast"}
+    </button>
+  );
+}
+
+/* ── Inner component (uses useSearchParams) ──────────── */
+
+function BrandRoastInner() {
+  const searchParams = useSearchParams();
   const [brandName, setBrandName] = useState("");
   const [industry, setIndustry] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<RoastResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [stage, setStage] = useState(0);
+  const [isSharedView, setIsSharedView] = useState(false);
+
+  // Load shared results from URL params
+  useEffect(() => {
+    const shared = parseSharedResult(searchParams);
+    if (shared) {
+      setBrandName(shared.brand);
+      setResult(shared.result);
+      setIsSharedView(true);
+    }
+  }, [searchParams]);
 
   const stages = [
     "Scanning brand positioning...",
@@ -207,6 +340,9 @@ export default function BrandRoast() {
     setIndustry("");
     setDescription("");
     setStage(0);
+    setIsSharedView(false);
+    // Clear URL params without reload
+    window.history.replaceState({}, "", "/roast");
   }
 
   return (
@@ -396,6 +532,9 @@ export default function BrandRoast() {
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted">
                   Weighted: Strategy (30%) + Creativity (25%) + Narrative (25%) + Digital (20%)
                 </p>
+                <div className="mt-6">
+                  <ShareButton brand={brandName} result={result} />
+                </div>
               </div>
 
               {/* Score cards */}
@@ -436,26 +575,37 @@ export default function BrandRoast() {
               {/* CTA */}
               <div className="mt-12 rounded-2xl bg-foreground p-8 text-center text-white md:p-12">
                 <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  Ready to fix what&apos;s broken?
+                  {isSharedView ? "Think your brand can do better?" : "Ready to fix what's broken?"}
                 </h3>
                 <p className="mx-auto mt-4 max-w-lg text-zinc-400">
-                  This roast is just the surface. ARTO Studio AI gives you a complete
-                  brand strategy, creative direction, and content system — powered by
-                  15+ years of real methodology.
+                  {isSharedView
+                    ? "Get your own free brand roast — scored across Strategy, Creativity, Narrative, and Digital using ARTO's real methodology."
+                    : "This roast is just the surface. ARTO Studio AI gives you a complete brand strategy, creative direction, and content system — powered by 15+ years of real methodology."}
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <a
-                    href="/#waitlist"
-                    className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
-                  >
-                    Start 7-day free trial
-                  </a>
-                  <button
-                    onClick={handleReset}
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
-                  >
-                    Roast another brand
-                  </button>
+                  {isSharedView ? (
+                    <button
+                      onClick={handleReset}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                    >
+                      Roast my brand
+                    </button>
+                  ) : (
+                    <>
+                      <a
+                        href="/#waitlist"
+                        className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                      >
+                        Start 7-day free trial
+                      </a>
+                      <button
+                        onClick={handleReset}
+                        className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
+                      >
+                        Roast another brand
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -484,5 +634,15 @@ export default function BrandRoast() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ── Page export (Suspense boundary for useSearchParams) ── */
+
+export default function BrandRoast() {
+  return (
+    <Suspense fallback={null}>
+      <BrandRoastInner />
+    </Suspense>
   );
 }
