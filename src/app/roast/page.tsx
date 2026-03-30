@@ -363,9 +363,6 @@ function BrandRoastInner() {
             </span>
           </Link>
           <div className="hidden items-center gap-8 md:flex">
-            <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors">
-              Home
-            </Link>
             <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors">
               Work
             </Link>
@@ -374,6 +371,12 @@ function BrandRoastInner() {
               className="text-sm font-medium text-foreground transition-colors"
             >
               Brand Roast
+            </Link>
+            <Link
+              href="/#pricing"
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              Pricing
             </Link>
             <a
               href="/#waitlist"
