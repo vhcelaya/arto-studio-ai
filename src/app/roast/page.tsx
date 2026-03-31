@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -139,21 +140,60 @@ function generateRoast(brandName: string, industry: string, description: string)
 
 /* ── Score bar component ──────────────────────────────── */
 
-function ScoreBar({ label, score, roast }: { label: string; score: number; roast: string }) {
+/* ── Animated counter hook ───────────────────────────── */
+
+function useCountUp(target: number, duration = 1200) {
+  const [value, setValue] = useState(0);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const start = performance.now();
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target * 10) / 10);
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+
+  return value;
+}
+
+/* ── Score bar component (animated) ──────────────────── */
+
+function ScoreBar({ label, score, roast, delay = 0 }: { label: string; score: number; roast: string; delay?: number }) {
   const pct = (score / 10) * 100;
   const color =
     score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : "bg-red-500";
+  const [visible, setVisible] = useState(false);
+  const [barWidth, setBarWidth] = useState(0);
+  const displayScore = useCountUp(visible ? score : 0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setVisible(true), delay);
+    const t2 = setTimeout(() => setBarWidth(pct), delay + 100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [delay, pct]);
 
   return (
-    <div className="rounded-xl border border-border bg-white p-6">
+    <div
+      className={`rounded-xl border border-border bg-white p-6 transition-all duration-500 ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold uppercase tracking-widest">{label}</h3>
-        <span className="text-2xl font-bold tracking-tight">{score}/10</span>
+        <span className="text-2xl font-bold tracking-tight">{displayScore}/10</span>
       </div>
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
         <div
-          className={`h-full rounded-full ${color} transition-all duration-1000`}
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full ${color} transition-all duration-1000 ease-out`}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
       <p className="mt-4 text-sm leading-relaxed text-muted">{roast}</p>
@@ -161,15 +201,219 @@ function ScoreBar({ label, score, roast }: { label: string; score: number; roast
   );
 }
 
-/* ── Main page ────────────────────────────────────────── */
+/* ── Overall score display (animated) ────────────────── */
 
-export default function BrandRoast() {
+function OverallScoreDisplay({ score }: { score: number }) {
+  const animated = useCountUp(score, 1500);
+  const color =
+    score >= 7
+      ? "text-emerald-500"
+      : score >= 5
+      ? "text-amber-500"
+      : "text-red-500";
+
+  return (
+    <div className="mt-6 inline-flex items-baseline gap-1">
+      <span className={`text-7xl font-bold tracking-tight ${color}`}>
+        {animated}
+      </span>
+      <span className="text-2xl font-bold text-zinc-300">/10</span>
+    </div>
+  );
+}
+
+/* ── History types ───────────────────────────────────── */
+
+interface RoastHistoryEntry {
+  brandName: string;
+  industry: string;
+  overall: number;
+  date: string;
+  s: number;
+  c: number;
+  n: number;
+  d: number;
+}
+
+const HISTORY_KEY = "arto_roast_history";
+
+function loadHistory(): RoastHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToHistory(entry: RoastHistoryEntry) {
+  const history = loadHistory();
+  // Avoid exact duplicates (same brand + industry)
+  const filtered = history.filter(
+    (h) => !(h.brandName === entry.brandName && h.industry === entry.industry)
+  );
+  // Most recent first, max 20
+  const updated = [entry, ...filtered].slice(0, 20);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  return updated;
+}
+
+/* ── Share helpers ───────────────────────────────────── */
+
+function buildShareUrl(brand: string, result: RoastResult): string {
+  const params = new URLSearchParams({
+    brand,
+    score: String(result.overall),
+    s: String(result.strategy.score),
+    c: String(result.creativity.score),
+    n: String(result.narrative.score),
+    d: String(result.digital.score),
+  });
+  return `${window.location.origin}/roast?${params.toString()}`;
+}
+
+function parseSharedResult(params: URLSearchParams): { brand: string; result: RoastResult } | null {
+  const brand = params.get("brand");
+  const score = params.get("score");
+  const s = params.get("s");
+  const c = params.get("c");
+  const n = params.get("n");
+  const d = params.get("d");
+
+  if (!brand || !score || !s || !c || !n || !d) return null;
+
+  const sNum = Number(s);
+  const cNum = Number(c);
+  const nNum = Number(n);
+  const dNum = Number(d);
+
+  if ([sNum, cNum, nNum, dNum].some((v) => isNaN(v) || v < 0 || v > 10)) return null;
+
+  const seed = hash(brand.toLowerCase());
+
+  return {
+    brand,
+    result: {
+      overall: Number(score),
+      strategy: { score: sNum, roast: pick(strategyRoasts, seed) },
+      creativity: { score: cNum, roast: pick(creativityRoasts, seed >> 2) },
+      narrative: { score: nNum, roast: pick(narrativeRoasts, seed >> 4) },
+      digital: { score: dNum, roast: pick(digitalRoasts, hash(brand)) },
+      verdict: pick(verdicts, seed >> 1),
+      improvements: (() => {
+        const imps = [
+          pick(improvementPool, seed),
+          pick(improvementPool, seed + 3),
+          pick(improvementPool, seed + 7),
+        ];
+        const unique = [...new Set(imps)];
+        while (unique.length < 3) {
+          unique.push(pick(improvementPool, seed + unique.length + 10));
+        }
+        return unique.slice(0, 3);
+      })(),
+    },
+  };
+}
+
+/* ── Share button component ─────────────────────────── */
+
+function ShareButton({ brand, result }: { brand: string; result: RoastResult }) {
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = buildShareUrl(brand, result);
+  const shareText = `My brand "${brand}" just got roasted by ARTO Studio AI: ${result.overall}/10. Think yours can do better?`;
+
+  async function handleShare() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Brand Roast: ${brand}`, text: shareText, url: shareUrl });
+        return;
+      } catch {
+        // User cancelled or share failed, fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const input = document.createElement("input");
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-zinc-50"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="18" cy="5" r="3" />
+        <circle cx="6" cy="12" r="3" />
+        <circle cx="18" cy="19" r="3" />
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+      </svg>
+      {copied ? "Link copied!" : "Share your roast"}
+    </button>
+  );
+}
+
+/* ── Inner component (uses useSearchParams) ──────────── */
+
+function BrandRoastInner() {
+  const searchParams = useSearchParams();
   const [brandName, setBrandName] = useState("");
   const [industry, setIndustry] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<RoastResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [stage, setStage] = useState(0);
+  const [isSharedView, setIsSharedView] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailUnlocked, setEmailUnlocked] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [history, setHistory] = useState<RoastHistoryEntry[]>([]);
+
+  // Load email + history from localStorage on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("arto_roast_email");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setEmailUnlocked(true);
+    }
+    setHistory(loadHistory());
+  }, []);
+
+  // Load shared results from URL params
+  useEffect(() => {
+    const shared = parseSharedResult(searchParams);
+    if (shared) {
+      setBrandName(shared.brand);
+      setResult(shared.result);
+      setIsSharedView(true);
+    }
+  }, [searchParams]);
 
   const stages = [
     "Scanning brand positioning...",
@@ -196,7 +440,19 @@ export default function BrandRoast() {
       } else {
         clearInterval(interval);
         setAnalyzing(false);
-        setResult(generateRoast(brandName, industry, description));
+        const roastResult = generateRoast(brandName, industry, description);
+        setResult(roastResult);
+        const updated = saveToHistory({
+          brandName,
+          industry,
+          overall: roastResult.overall,
+          date: new Date().toISOString(),
+          s: roastResult.strategy.score,
+          c: roastResult.creativity.score,
+          n: roastResult.narrative.score,
+          d: roastResult.digital.score,
+        });
+        setHistory(updated);
       }
     }, 800);
   }
@@ -207,6 +463,9 @@ export default function BrandRoast() {
     setIndustry("");
     setDescription("");
     setStage(0);
+    setIsSharedView(false);
+    // Clear URL params without reload
+    window.history.replaceState({}, "", "/roast");
   }
 
   return (
@@ -226,6 +485,8 @@ export default function BrandRoast() {
               STUDIO AI
             </span>
           </Link>
+
+          {/* Desktop nav */}
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors">
               Work
@@ -249,12 +510,57 @@ export default function BrandRoast() {
               Join Waitlist
             </a>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 md:hidden"
+            aria-label="Toggle menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {mobileMenuOpen ? (
+                <>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </>
+              ) : (
+                <>
+                  <line x1="4" y1="8" x2="20" y2="8" />
+                  <line x1="4" y1="16" x2="20" y2="16" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="border-t border-border px-6 py-4 md:hidden">
+            <div className="flex flex-col gap-4">
+              <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Work
+              </Link>
+              <Link href="/roast" className="text-sm font-medium text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Brand Roast
+              </Link>
+              <Link href="/#pricing" className="text-sm text-muted hover:text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Pricing
+              </Link>
+              <a
+                href="/#waitlist"
+                className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Join Waitlist
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
       <section className="border-b border-border bg-foreground text-white">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-24">
           <p className="mb-3 text-sm font-medium uppercase tracking-widest text-zinc-400">
             Free tool by ARTO Studio AI
           </p>
@@ -274,7 +580,7 @@ export default function BrandRoast() {
 
       {/* Form / Results */}
       <section className="flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:py-20">
           {!result && !analyzing && (
             <div className="mx-auto max-w-2xl">
               <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -348,12 +654,57 @@ export default function BrandRoast() {
                   and strategic inspiration.
                 </p>
               </form>
+
+              {/* Previous roasts */}
+              {history.length > 0 && (
+                <div className="mt-12 border-t border-border pt-10">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                    Previous Roasts
+                  </h3>
+                  <div className="mt-4 space-y-3">
+                    {history.map((entry, i) => {
+                      const scoreColor =
+                        entry.overall >= 7
+                          ? "text-emerald-500"
+                          : entry.overall >= 5
+                          ? "text-amber-500"
+                          : "text-red-500";
+                      return (
+                        <button
+                          key={`${entry.brandName}-${i}`}
+                          onClick={() => {
+                            setBrandName(entry.brandName);
+                            setIndustry(entry.industry);
+                            setDescription("");
+                            setResult(generateRoast(entry.brandName, entry.industry, ""));
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-zinc-50"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{entry.brandName}</p>
+                            <p className="text-xs text-muted">
+                              {entry.industry} &middot;{" "}
+                              {new Date(entry.date).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          <span className={`ml-4 text-lg font-bold ${scoreColor}`}>
+                            {entry.overall}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Analyzing animation */}
           {analyzing && (
-            <div className="mx-auto max-w-2xl text-center py-20">
+            <div className="mx-auto max-w-2xl text-center py-12 md:py-20 animate-fade-in">
               <div className="mx-auto mb-8 h-16 w-16 animate-spin rounded-full border-4 border-zinc-200 border-t-foreground" />
               <h2 className="text-2xl font-bold tracking-tight">
                 Analyzing {brandName}...
@@ -372,7 +723,7 @@ export default function BrandRoast() {
 
           {/* Results */}
           {result && (
-            <div>
+            <div className="animate-fade-in">
               {/* Overall Score */}
               <div className="mb-12 text-center">
                 <p className="text-sm font-medium uppercase tracking-widest text-muted">
@@ -382,83 +733,152 @@ export default function BrandRoast() {
                   {brandName}
                 </h2>
                 <p className="mt-1 text-sm text-muted">{industry}</p>
-                <div className="mt-6 inline-flex items-baseline gap-1">
-                  <span
-                    className={`text-7xl font-bold tracking-tight ${
-                      result.overall >= 7
-                        ? "text-emerald-500"
-                        : result.overall >= 5
-                        ? "text-amber-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {result.overall}
-                  </span>
-                  <span className="text-2xl font-bold text-zinc-300">/10</span>
-                </div>
+                <OverallScoreDisplay score={result.overall} />
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted">
                   Weighted: Strategy (30%) + Creativity (25%) + Narrative (25%) + Digital (20%)
                 </p>
+                <div className="mt-6">
+                  <ShareButton brand={brandName} result={result} />
+                </div>
               </div>
 
-              {/* Score cards */}
-              <div className="grid gap-6 md:grid-cols-2">
-                <ScoreBar label="Strategy" score={result.strategy.score} roast={result.strategy.roast} />
-                <ScoreBar label="Creativity" score={result.creativity.score} roast={result.creativity.roast} />
-                <ScoreBar label="Narrative" score={result.narrative.score} roast={result.narrative.roast} />
-                <ScoreBar label="Digital" score={result.digital.score} roast={result.digital.roast} />
-              </div>
+              {/* Email gate — unlock full report */}
+              {!emailUnlocked && !isSharedView ? (
+                <div className="mx-auto max-w-lg">
+                  <div className="rounded-2xl border border-border bg-zinc-50 p-8 text-center md:p-10">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold tracking-tight">
+                      Unlock your full report
+                    </h3>
+                    <p className="mt-2 text-sm text-muted">
+                      Enter your email to see the detailed breakdown by pillar, your verdict, and actionable improvements.
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const trimmed = email.trim();
+                        if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                          setEmailError("Please enter a valid email address.");
+                          return;
+                        }
+                        setEmailError("");
+                        localStorage.setItem("arto_roast_email", trimmed);
+                        setEmailUnlocked(true);
+                      }}
+                      className="mt-6"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                          placeholder="you@company.com"
+                          className="flex-1 rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-full bg-foreground px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 whitespace-nowrap"
+                        >
+                          Unlock full report
+                        </button>
+                      </div>
+                      {emailError && (
+                        <p className="mt-2 text-xs text-red-500">{emailError}</p>
+                      )}
+                    </form>
+                    <p className="mt-4 text-xs text-zinc-400">
+                      No spam. We may send you branding tips and ARTO updates.
+                    </p>
+                  </div>
 
-              {/* Verdict */}
-              <div className="mt-12 rounded-2xl border border-border bg-zinc-50 p-8 md:p-10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
-                  The Verdict
-                </h3>
-                <p className="mt-4 text-lg font-medium leading-relaxed">
-                  {result.verdict}
-                </p>
-              </div>
+                  {/* Blurred preview of what's behind the gate */}
+                  <div className="mt-6 select-none pointer-events-none" aria-hidden="true">
+                    <div className="grid gap-6 md:grid-cols-2 blur-md opacity-50">
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Score cards */}
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <ScoreBar label="Strategy" score={result.strategy.score} roast={result.strategy.roast} delay={0} />
+                    <ScoreBar label="Creativity" score={result.creativity.score} roast={result.creativity.roast} delay={150} />
+                    <ScoreBar label="Narrative" score={result.narrative.score} roast={result.narrative.roast} delay={300} />
+                    <ScoreBar label="Digital" score={result.digital.score} roast={result.digital.roast} delay={450} />
+                  </div>
 
-              {/* Improvements */}
-              <div className="mt-8 rounded-2xl border border-border p-8 md:p-10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
-                  Where to Start
-                </h3>
-                <ul className="mt-4 space-y-4">
-                  {result.improvements.map((imp, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-white">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm leading-relaxed text-muted">{imp}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  {/* Verdict */}
+                  <div className="mt-12 rounded-2xl border border-border bg-zinc-50 p-8 md:p-10">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                      The Verdict
+                    </h3>
+                    <p className="mt-4 text-lg font-medium leading-relaxed">
+                      {result.verdict}
+                    </p>
+                  </div>
+
+                  {/* Improvements */}
+                  <div className="mt-8 rounded-2xl border border-border p-8 md:p-10">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                      Where to Start
+                    </h3>
+                    <ul className="mt-4 space-y-4">
+                      {result.improvements.map((imp, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <span className="text-sm leading-relaxed text-muted">{imp}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
 
               {/* CTA */}
               <div className="mt-12 rounded-2xl bg-foreground p-8 text-center text-white md:p-12">
                 <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  Ready to fix what&apos;s broken?
+                  {isSharedView ? "Think your brand can do better?" : "Ready to fix what's broken?"}
                 </h3>
                 <p className="mx-auto mt-4 max-w-lg text-zinc-400">
-                  This roast is just the surface. ARTO Studio AI gives you a complete
-                  brand strategy, creative direction, and content system — powered by
-                  15+ years of real methodology.
+                  {isSharedView
+                    ? "Get your own free brand roast — scored across Strategy, Creativity, Narrative, and Digital using ARTO's real methodology."
+                    : "This roast is just the surface. ARTO Studio AI gives you a complete brand strategy, creative direction, and content system — powered by 15+ years of real methodology."}
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <a
-                    href="/#waitlist"
-                    className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
-                  >
-                    Start 7-day free trial
-                  </a>
-                  <button
-                    onClick={handleReset}
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
-                  >
-                    Roast another brand
-                  </button>
+                  {isSharedView ? (
+                    <button
+                      onClick={handleReset}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                    >
+                      Roast my brand
+                    </button>
+                  ) : (
+                    <>
+                      <a
+                        href="/#waitlist"
+                        className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                      >
+                        Start 7-day free trial
+                      </a>
+                      <button
+                        onClick={handleReset}
+                        className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
+                      >
+                        Roast another brand
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -487,5 +907,15 @@ export default function BrandRoast() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ── Page export (Suspense boundary for useSearchParams) ── */
+
+export default function BrandRoast() {
+  return (
+    <Suspense fallback={null}>
+      <BrandRoastInner />
+    </Suspense>
   );
 }
