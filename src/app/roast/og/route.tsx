@@ -1,18 +1,18 @@
 import { ImageResponse } from "next/og";
-import { NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 
 export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const brand = searchParams.get("brand") || "Your Brand";
-  const score = searchParams.get("score") || "?";
-  const s = searchParams.get("s") || "–";
-  const c = searchParams.get("c") || "–";
-  const n = searchParams.get("n") || "–";
-  const d = searchParams.get("d") || "–";
+  const score = searchParams.get("score") || "0";
+  const strategy = searchParams.get("s") || "0";
+  const creativity = searchParams.get("c") || "0";
+  const narrative = searchParams.get("n") || "0";
+  const digital = searchParams.get("d") || "0";
 
-  const scoreNum = Number(score);
+  const scoreNum = parseFloat(score);
   const scoreColor =
     scoreNum >= 7 ? "#10b981" : scoreNum >= 5 ? "#f59e0b" : "#ef4444";
 
@@ -20,12 +20,12 @@ export async function GET(req: NextRequest) {
     (
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
           width: "100%",
           height: "100%",
-          backgroundColor: "#18181b",
-          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#0a0a0a",
+          color: "#ffffff",
           fontFamily: "system-ui, sans-serif",
           padding: "60px",
         }}
@@ -45,33 +45,42 @@ export async function GET(req: NextRequest) {
           <span style={{ fontSize: "20px", color: "#52525b" }}>×</span>
           <span
             style={{
-              fontSize: "20px",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              color: "#a1a1aa",
+              fontSize: "16px",
+              color: "#71717a",
+              marginLeft: "4px",
             }}
           >
-            BRAND ROAST
+            Brand Roast
           </span>
         </div>
 
-        {/* Brand name + score */}
+        {/* Brand + Score */}
         <div
           style={{
             display: "flex",
-            alignItems: "flex-end",
+            flex: 1,
+            alignItems: "center",
             justifyContent: "space-between",
             marginTop: "40px",
-            flex: 1,
           }}
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span
               style={{
-                fontSize: "56px",
+                fontSize: "14px",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+                color: "#71717a",
+              }}
+            >
+              ARTO Score for
+            </span>
+            <span
+              style={{
+                fontSize: "64px",
                 fontWeight: 800,
-                letterSpacing: "-0.02em",
                 lineHeight: 1.1,
+                marginTop: "8px",
                 maxWidth: "600px",
               }}
             >
@@ -106,13 +115,7 @@ export async function GET(req: NextRequest) {
             >
               {score}
             </span>
-            <span
-              style={{
-                fontSize: "24px",
-                fontWeight: 700,
-                color: "#52525b",
-              }}
-            >
+            <span style={{ fontSize: "24px", fontWeight: 700, color: "#52525b" }}>
               / 10
             </span>
           </div>
@@ -122,42 +125,54 @@ export async function GET(req: NextRequest) {
         <div
           style={{
             display: "flex",
-            gap: "32px",
-            marginTop: "40px",
-            paddingTop: "32px",
+            gap: "40px",
             borderTop: "1px solid #27272a",
+            paddingTop: "30px",
           }}
         >
           {[
-            { label: "Strategy", value: s },
-            { label: "Creativity", value: c },
-            { label: "Narrative", value: n },
-            { label: "Digital", value: d },
+            { label: "Strategy", value: strategy },
+            { label: "Creativity", value: creativity },
+            { label: "Narrative", value: narrative },
+            { label: "Digital", value: digital },
           ].map((pillar) => (
             <div
               key={pillar.label}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
             >
               <span
                 style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  letterSpacing: "0.12em",
-                  color: "#71717a",
+                  fontSize: "12px",
                   textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                  color: "#71717a",
                 }}
               >
                 {pillar.label}
               </span>
               <span style={{ fontSize: "32px", fontWeight: 800 }}>
-                {pillar.value}
+                {pillar.value}/10
               </span>
             </div>
           ))}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "30px",
+            borderTop: "1px solid #27272a",
+            paddingTop: "20px",
+          }}
+        >
+          <span style={{ fontSize: "14px", color: "#52525b" }}>
+            arto-studio-ai.vercel.app/roast
+          </span>
+          <span style={{ fontSize: "14px", color: "#52525b" }}>
+            Free · Instant · No signup
+          </span>
         </div>
       </div>
     ),
