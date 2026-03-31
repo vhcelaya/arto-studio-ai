@@ -316,65 +316,132 @@ function parseSharedResult(params: URLSearchParams): { brand: string; result: Ro
   };
 }
 
-/* ── Share button component ─────────────────────────── */
+/* ── Social share panel ─────────────────────────────── */
 
-function ShareButton({ brand, result }: { brand: string; result: RoastResult }) {
+function SocialSharePanel({ brand, result }: { brand: string; result: RoastResult }) {
   const [copied, setCopied] = useState(false);
 
   const shareUrl = buildShareUrl(brand, result);
-  const shareText = `My brand "${brand}" just got roasted by ARTO Studio AI: ${result.overall}/10. Think yours can do better?`;
+  const shareText = `My brand "${brand}" scored ${result.overall}/10 on ARTO's Brand Roast. Think yours can do better?`;
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent(shareText);
 
-  async function handleShare() {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Brand Roast: ${brand}`, text: shareText, url: shareUrl });
-        return;
-      } catch {
-        // User cancelled or share failed, fall through to clipboard
-      }
-    }
-
+  async function copyLink() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
       const input = document.createElement("input");
       input.value = shareUrl;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
+  const socials = [
+    {
+      label: "X / Twitter",
+      color: "hover:bg-black hover:text-white hover:border-black",
+      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      ),
+    },
+    {
+      label: "LinkedIn",
+      color: "hover:bg-[#0077b5] hover:text-white hover:border-[#0077b5]",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+        </svg>
+      ),
+    },
+    {
+      label: "WhatsApp",
+      color: "hover:bg-[#25d366] hover:text-white hover:border-[#25d366]",
+      href: `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+        </svg>
+      ),
+    },
+  ];
+
+  const ogBase = `/roast/og?brand=${encodeURIComponent(brand)}&score=${result.overall}&s=${result.strategy.score}&c=${result.creativity.score}&n=${result.narrative.score}&d=${result.digital.score}`;
+
   return (
-    <button
-      onClick={handleShare}
-      className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-zinc-50"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="18" cy="5" r="3" />
-        <circle cx="6" cy="12" r="3" />
-        <circle cx="18" cy="19" r="3" />
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-      </svg>
-      {copied ? "Link copied!" : "Share your roast"}
-    </button>
+    <div className="mt-6 flex flex-col items-center gap-4">
+      {/* Social share */}
+      <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Share your roast</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {socials.map((s) => (
+          <a
+            key={s.label}
+            href={s.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors ${s.color}`}
+          >
+            {s.icon}
+            {s.label}
+          </a>
+        ))}
+        <button
+          onClick={copyLink}
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100"
+        >
+          {copied ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+              Copied!
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="13" height="13" x="9" y="9" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              Copy link
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Download for Instagram */}
+      <div className="flex flex-wrap justify-center gap-2">
+        <p className="w-full text-center text-xs text-zinc-400">Download image for Instagram</p>
+        <a
+          href={`${ogBase}&format=square`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
+          download={`roast-${brand}-square.png`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Feed 1:1
+        </a>
+        <a
+          href={`${ogBase}&format=story`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
+          download={`roast-${brand}-story.png`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Story 9:16
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -384,6 +451,8 @@ function BrandRoastInner() {
   const searchParams = useSearchParams();
   const [brandName, setBrandName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<RoastResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -461,6 +530,8 @@ function BrandRoastInner() {
     setResult(null);
     setBrandName("");
     setIndustry("");
+    setCompanySize("");
+    setWebsiteUrl("");
     setDescription("");
     setStage(0);
     setIsSharedView(false);
@@ -589,47 +660,118 @@ function BrandRoastInner() {
               <p className="mt-2 text-muted">
                 Be honest — the more context you give, the sharper the roast.
               </p>
-              <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                <div>
-                  <label htmlFor="brandName" className="block text-sm font-medium">
-                    Brand name *
-                  </label>
-                  <input
-                    id="brandName"
-                    type="text"
-                    value={brandName}
-                    onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="e.g. Acme Corp"
-                    required
-                    className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
-                  />
+              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+
+                {/* Row 1: Brand name + Website */}
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="brandName" className="block text-sm font-medium">
+                      Brand name *
+                    </label>
+                    <input
+                      id="brandName"
+                      type="text"
+                      value={brandName}
+                      onChange={(e) => setBrandName(e.target.value)}
+                      placeholder="e.g. Acme Corp"
+                      required
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="websiteUrl" className="block text-sm font-medium">
+                      Website URL
+                      <span className="ml-1 text-xs font-normal text-zinc-400">(optional — improves accuracy)</span>
+                    </label>
+                    <input
+                      id="websiteUrl"
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://yourband.com"
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="industry" className="block text-sm font-medium">
-                    Industry *
-                  </label>
-                  <select
-                    id="industry"
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    required
-                    className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
-                  >
-                    <option value="">Select your industry</option>
-                    <option value="Technology">Technology</option>
-                    <option value="E-commerce">E-commerce / Retail</option>
-                    <option value="Food & Beverage">Food & Beverage</option>
-                    <option value="Finance">Finance / Fintech</option>
-                    <option value="Health & Wellness">Health & Wellness</option>
-                    <option value="Education">Education</option>
-                    <option value="Real Estate">Real Estate</option>
-                    <option value="Fashion">Fashion & Beauty</option>
-                    <option value="Entertainment">Entertainment & Media</option>
-                    <option value="SaaS">SaaS / B2B</option>
-                    <option value="Agency">Agency / Services</option>
-                    <option value="Other">Other</option>
-                  </select>
+
+                {/* Row 2: Industry + Company size */}
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="industry" className="block text-sm font-medium">
+                      Sector / Industry *
+                    </label>
+                    <select
+                      id="industry"
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      required
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
+                    >
+                      <option value="">Select your sector</option>
+                      <optgroup label="Technology">
+                        <option value="SaaS / B2B Software">SaaS / B2B Software</option>
+                        <option value="Consumer Tech">Consumer Tech / Apps</option>
+                        <option value="Fintech">Fintech</option>
+                        <option value="Healthtech">Healthtech / MedTech</option>
+                        <option value="Edtech">Edtech</option>
+                        <option value="Proptech">Proptech</option>
+                        <option value="AI / Data">AI / Data</option>
+                      </optgroup>
+                      <optgroup label="Consumer & Retail">
+                        <option value="E-commerce">E-commerce / Retail</option>
+                        <option value="Fashion & Beauty">Fashion & Beauty</option>
+                        <option value="Food & Beverage">Food & Beverage</option>
+                        <option value="CPG">CPG / Consumer Goods</option>
+                        <option value="Luxury">Luxury & Premium</option>
+                      </optgroup>
+                      <optgroup label="Services">
+                        <option value="Agency">Agency / Creative Services</option>
+                        <option value="Professional Services">Professional Services</option>
+                        <option value="Legal">Legal / Consulting</option>
+                        <option value="Finance">Finance / Investment</option>
+                        <option value="Real Estate">Real Estate / Architecture</option>
+                        <option value="Education">Education / Training</option>
+                        <option value="Health & Wellness">Health & Wellness</option>
+                        <option value="Travel & Hospitality">Travel & Hospitality</option>
+                      </optgroup>
+                      <optgroup label="Industry">
+                        <option value="Manufacturing">Manufacturing / Industrial</option>
+                        <option value="Automotive">Automotive</option>
+                        <option value="Energy">Energy / Sustainability</option>
+                        <option value="Construction">Construction / Engineering</option>
+                        <option value="Logistics">Logistics / Supply Chain</option>
+                      </optgroup>
+                      <optgroup label="Media & Culture">
+                        <option value="Entertainment">Entertainment / Media</option>
+                        <option value="Sports & Fitness">Sports & Fitness</option>
+                        <option value="Arts & Culture">Arts, Culture & Design</option>
+                        <option value="NGO / Social Impact">NGO / Social Impact</option>
+                      </optgroup>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="companySize" className="block text-sm font-medium">
+                      Company size
+                    </label>
+                    <select
+                      id="companySize"
+                      value={companySize}
+                      onChange={(e) => setCompanySize(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
+                    >
+                      <option value="">Select size</option>
+                      <option value="solo">Solo / Freelancer (1)</option>
+                      <option value="micro">Micro (2–10 people)</option>
+                      <option value="small">Small (11–50 people)</option>
+                      <option value="medium">Mid-size (51–200 people)</option>
+                      <option value="large">Large (201–1,000 people)</option>
+                      <option value="enterprise">Enterprise (1,000+)</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* Description */}
                 <div>
                   <label htmlFor="description" className="block text-sm font-medium">
                     Brief description of your brand
@@ -643,6 +785,7 @@ function BrandRoastInner() {
                     className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground resize-none"
                   />
                 </div>
+
                 <button
                   type="submit"
                   className="w-full rounded-full bg-foreground px-8 py-4 text-base font-medium text-white transition-colors hover:bg-zinc-800"
@@ -737,9 +880,7 @@ function BrandRoastInner() {
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted">
                   Weighted: Strategy (30%) + Creativity (25%) + Narrative (25%) + Digital (20%)
                 </p>
-                <div className="mt-6">
-                  <ShareButton brand={brandName} result={result} />
-                </div>
+                <SocialSharePanel brand={brandName} result={result} />
               </div>
 
               {/* Email gate — unlock full report */}
