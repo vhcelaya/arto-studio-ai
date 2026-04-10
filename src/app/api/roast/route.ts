@@ -6,6 +6,7 @@ import { getKnowledgeContext } from "@/lib/knowledge";
 import { buildSystemPrompt, roastTool } from "@/lib/roast-prompt";
 import { generateDeterministicRoast } from "@/lib/roast-fallback";
 import type { RoastRequest, RoastResponse, RoastResult } from "@/lib/roast-types";
+import { saveTrace } from "@/lib/trace-store";
 
 // Load .env.local explicitly (workaround for Next.js 16 Turbopack env loading)
 config({
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
     const result = generateDeterministicRoast(brandName, industry, description ?? "");
     const response: RoastResponse = { source: "fallback", result };
-    logTrace({ brandName, industry, result, source: "fallback", model: "none", latencyMs: Date.now() - startTime });
+    persistTrace({ brandName, industry, companySize, websiteUrl, description, result, source: "fallback", model: "none", latencyMs: Date.now() - startTime });
     return NextResponse.json(response, { headers: corsHeaders });
   }
 
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
     };
 
     const roastResponse: RoastResponse = { source: "ai", result };
-    logTrace({ brandName, industry, result, source: "ai", model, latencyMs: Date.now() - startTime });
+    persistTrace({ brandName, industry, companySize, websiteUrl, description, result, source: "ai", model, latencyMs: Date.now() - startTime });
     return NextResponse.json(roastResponse, { headers: corsHeaders });
   } catch (error) {
     console.error("[/api/roast] Claude API error:", error);
@@ -206,21 +207,25 @@ export async function POST(request: NextRequest) {
     // Fallback to deterministic
     const result = generateDeterministicRoast(brandName, industry, description ?? "");
     const response: RoastResponse = { source: "fallback", result };
-    logTrace({ brandName, industry, result, source: "fallback", model: "error", latencyMs: Date.now() - startTime });
+    persistTrace({ brandName, industry, companySize, websiteUrl, description, result, source: "fallback", model: "error", latencyMs: Date.now() - startTime });
     return NextResponse.json(response, { headers: corsHeaders });
   }
 }
 
-/* ── Structured trace logging ─────────────────────────── */
+/* ── Structured trace logging + DB persistence ────────── */
 
-function logTrace(data: {
+function persistTrace(data: {
   brandName: string;
   industry: string;
+  companySize?: string;
+  websiteUrl?: string;
+  description?: string;
   result: RoastResult;
   source: string;
   model: string;
   latencyMs: number;
 }) {
+  // Always log to console (captured by Vercel logs)
   console.log(
     JSON.stringify({
       event: "roast_trace",
@@ -237,4 +242,30 @@ function logTrace(data: {
       latencyMs: data.latencyMs,
     })
   );
+
+  // Persist to DB (fire-and-forget — don't block the response)
+  saveTrace({
+    brand_name: data.brandName,
+    industry: data.industry,
+    company_size: data.companySize ?? null,
+    website_url: data.websiteUrl ?? null,
+    description: data.description ?? null,
+    overall_score: data.result.overall,
+    strategy_score: data.result.strategy.score,
+    creativity_score: data.result.creativity.score,
+    narrative_score: data.result.narrative.score,
+    digital_score: data.result.digital.score,
+    strategy_roast: data.result.strategy.roast,
+    creativity_roast: data.result.creativity.roast,
+    narrative_roast: data.result.narrative.roast,
+    digital_roast: data.result.digital.roast,
+    verdict: data.result.verdict,
+    improvements: data.result.improvements,
+    source: data.source as "ai" | "fallback",
+    model: data.model,
+    latency_ms: data.latencyMs,
+    email: null,
+  }).catch(() => {
+    // Silently fail — console.log trace is the fallback
+  });
 }
