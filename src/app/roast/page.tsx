@@ -832,6 +832,12 @@ function BrandRoastInner() {
                         setEmailError("");
                         localStorage.setItem("arto_roast_email", trimmed);
                         setEmailUnlocked(true);
+                        // Send email to server for trace association
+                        fetch("/api/roast/email", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email: trimmed, brandName }),
+                        }).catch(() => {}); // fire-and-forget
                       }}
                       className="mt-6"
                     >
