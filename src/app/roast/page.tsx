@@ -197,6 +197,24 @@ function parseSharedResult(params: URLSearchParams): { brand: string; result: Ro
 
 /* ── Social share panel ─────────────────────────────── */
 
+async function downloadImage(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    // Fallback: open in new tab
+    window.open(url, "_blank");
+  }
+}
+
 function SocialSharePanel({ brand, result }: { brand: string; result: RoastResult }) {
   const [copied, setCopied] = useState(false);
 
@@ -295,30 +313,24 @@ function SocialSharePanel({ brand, result }: { brand: string; result: RoastResul
       {/* Download for Instagram */}
       <div className="flex flex-wrap justify-center gap-2">
         <p className="w-full text-center text-xs text-zinc-400">Download image for Instagram</p>
-        <a
-          href={`${ogBase}&format=square`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => downloadImage(`${ogBase}&format=square`, `roast-${brand}-square.png`)}
           className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
-          download={`roast-${brand}-square.png`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           Feed 1:1
-        </a>
-        <a
-          href={`${ogBase}&format=story`}
-          target="_blank"
-          rel="noopener noreferrer"
+        </button>
+        <button
+          onClick={() => downloadImage(`${ogBase}&format=story`, `roast-${brand}-story.png`)}
           className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
-          download={`roast-${brand}-story.png`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           Story 9:16
-        </a>
+        </button>
       </div>
     </div>
   );
@@ -824,19 +836,22 @@ function BrandRoastInner() {
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
-                        const trimmed = email.trim();
-                        if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                        // Read directly from the input element to handle browser autofill
+                        const inputEl = e.currentTarget.querySelector("input[type=email]") as HTMLInputElement | null;
+                        const value = (inputEl?.value || email).trim();
+                        if (!value || !value.includes("@")) {
                           setEmailError("Please enter a valid email address.");
                           return;
                         }
+                        setEmail(value);
                         setEmailError("");
-                        localStorage.setItem("arto_roast_email", trimmed);
+                        localStorage.setItem("arto_roast_email", value);
                         setEmailUnlocked(true);
                         // Send email to server for trace association
                         fetch("/api/roast/email", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ email: trimmed, brandName }),
+                          body: JSON.stringify({ email: value, brandName }),
                         }).catch(() => {}); // fire-and-forget
                       }}
                       className="mt-6"
