@@ -1,159 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-/* ── Types ─────────────────────────────────────────────── */
-
-interface RoastResult {
-  overall: number;
-  strategy: { score: number; roast: string };
-  creativity: { score: number; roast: string };
-  narrative: { score: number; roast: string };
-  digital: { score: number; roast: string };
-  verdict: string;
-  improvements: string[];
-}
-
-/* ── Roast generation (deterministic, client-side) ───── */
-
-function hash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
-
-function pick<T>(arr: T[], seed: number): T {
-  return arr[seed % arr.length];
-}
-
-const strategyRoasts = [
-  "Your positioning says 'we do everything for everyone.' Translation: you stand for nothing.",
-  "You're competing on features when the market already moved to competing on culture. Classic.",
-  "Your brand strategy reads like a corporate Mad Libs. Insert [buzzword], add [synergy], serve lukewarm.",
-  "No tension, no point of view, no cultural relevance. Your strategy is a room-temperature glass of water.",
-  "You have a mission statement, not a strategy. There's a difference — and your customers can tell.",
-  "Your positioning could belong to any of your 12 competitors. That's not a strategy, that's camouflage.",
-  "You're playing it safe in a market that rewards boldness. Beige is not a brand strategy.",
-  "Your target audience is 'everyone 18-65.' That's not targeting, that's hoping.",
-];
-
-const creativityRoasts = [
-  "Your visual identity looks like it was designed by committee — because it probably was.",
-  "Stock photos, blue gradients, and a sans-serif logo. Welcome to 2015, population: too many brands.",
-  "Your brand looks like every other brand in your category. If I blur my eyes, you literally disappear.",
-  "There's 'clean design' and then there's 'we had no creative direction.' Guess which one this is.",
-  "Your color palette says 'trustworthy and reliable.' So does every bank, insurance company, and toothpaste brand.",
-  "The anti-polish movement is here and you're still trying to look like a Fortune 500 annual report.",
-  "Your creative direction is 'professional.' That's not a direction, that's the absence of one.",
-  "Minimalism works when there's substance underneath. Right now it's just... minimum.",
-];
-
-const narrativeRoasts = [
-  "Your brand talks about itself in every sentence. Your customer is the hero, not you. Read that again.",
-  "Your copy reads like a press release from 2008. 'We're proud to announce' — nobody is proud reading this.",
-  "'Innovative solutions for modern challenges.' I've seen this exact line on 47 websites today.",
-  "Your brand story starts with your founding year. Nobody cares. Start with the customer's problem.",
-  "You tell people you're great instead of showing them. That's not narrative, that's a LinkedIn humble-brag.",
-  "Your brand voice is 'corporate warm.' That's like 'military jazz' — two things that cancel each other out.",
-  "There's no tension in your story. No conflict, no stakes, no reason to care. It's a bedtime story — literally.",
-  "Your tagline could be an AI-generated placeholder. Actually, it might be worse than one.",
-];
-
-const digitalRoasts = [
-  "Your social media strategy is 'post three times a week and pray.' That's not a strategy, that's a ritual.",
-  "You have 10K followers and 3 likes per post. That's not a community, that's a ghost town with bots.",
-  "Your SEO strategy is non-existent. Page 5 of Google is basically witness protection.",
-  "You're still thinking 'audience' when the market moved to 'community.' Broadcasting to nobody who cares.",
-  "Your content calendar is just holidays and product launches. Where's the cultural conversation?",
-  "Your website loads like it's powered by a hamster wheel. Speed is a ranking factor — and a respect factor.",
-  "You treat social media like a megaphone when it should be a conversation. No wonder nobody's responding.",
-  "Your digital presence is scattered across 7 platforms doing nothing well. Pick 2 and actually show up.",
-];
-
-const verdicts = [
-  "Your brand isn't broken — it's just invisible. The raw material is there, but nobody can see it through the generic positioning.",
-  "Honest truth: your brand has potential, but right now it's playing dress-up in someone else's clothes. Time to find your own voice.",
-  "You're not terrible — you're forgettable. And in marketing, forgettable is worse than terrible. At least terrible gets talked about.",
-  "Your brand is doing the marketing equivalent of mumbling. Speak up, take a stand, or get drowned out.",
-  "There's a real brand buried under layers of corporate caution. The question is: are you brave enough to let it out?",
-  "You're one bold decision away from being interesting. Right now you're three safe decisions deep into boring.",
-  "Your brand has the personality of a default settings page. Factory reset and start with intention this time.",
-  "Not hopeless — just directionless. With the right strategy, this could actually become something people remember.",
-];
-
-const improvementPool = [
-  "Define a real positioning that your competitors can't copy — something only YOU can own.",
-  "Kill the corporate speak. Write like a human talking to another human.",
-  "Find your cultural tension — what conversation can your brand lead that nobody else is leading?",
-  "Stop trying to appeal to everyone. Pick your tribe and speak directly to them.",
-  "Invest in a visual identity that actually reflects your brand's personality, not your industry's defaults.",
-  "Build community, not audience. Create spaces where your customers talk to each other, not just listen to you.",
-  "Create a content strategy based on cultural relevance, not just product features.",
-  "Make your customer the hero of every story you tell. Your brand is the guide, not the protagonist.",
-  "Audit your digital presence — consolidate platforms and go deep instead of wide.",
-  "Develop a brand voice guide that your team actually uses, not one that sits in a Google Drive folder.",
-  "Stop chasing trends and start setting them. Your brand should lead conversations, not follow them.",
-  "Align your visual identity with the anti-polish movement — authentic beats perfect in 2026.",
-];
-
-function generateRoast(brandName: string, industry: string, description: string): RoastResult {
-  const seed = hash(brandName.toLowerCase() + industry.toLowerCase() + description.toLowerCase());
-
-  const strategyScore = 3 + (seed % 5);          // 3-7
-  const creativityScore = 2 + ((seed >> 3) % 6);  // 2-7
-  const narrativeScore = 3 + ((seed >> 6) % 5);   // 3-7
-  const digitalScore = 2 + ((seed >> 9) % 6);     // 2-7
-
-  const overall =
-    strategyScore * 0.3 +
-    creativityScore * 0.25 +
-    narrativeScore * 0.25 +
-    digitalScore * 0.2;
-
-  const s2 = hash(brandName + industry);
-  const improvements = [
-    pick(improvementPool, seed),
-    pick(improvementPool, seed + 3),
-    pick(improvementPool, seed + 7),
-  ];
-  // deduplicate
-  const uniqueImprovements = [...new Set(improvements)];
-  while (uniqueImprovements.length < 3) {
-    uniqueImprovements.push(pick(improvementPool, seed + uniqueImprovements.length + 10));
-  }
-
-  return {
-    overall: Math.round(overall * 10) / 10,
-    strategy: { score: strategyScore, roast: pick(strategyRoasts, seed) },
-    creativity: { score: creativityScore, roast: pick(creativityRoasts, seed >> 2) },
-    narrative: { score: narrativeScore, roast: pick(narrativeRoasts, seed >> 4) },
-    digital: { score: digitalScore, roast: pick(digitalRoasts, s2) },
-    verdict: pick(verdicts, seed >> 1),
-    improvements: uniqueImprovements.slice(0, 3),
-  };
-}
+import { useSearchParams } from "next/navigation";
+import type { RoastResult } from "@/lib/roast-types";
+import {
+  generateDeterministicRoast,
+  hash,
+  pick,
+  strategyRoasts,
+  creativityRoasts,
+  narrativeRoasts,
+  digitalRoasts,
+  verdicts,
+  improvementPool,
+} from "@/lib/roast-fallback";
 
 /* ── Score bar component ──────────────────────────────── */
 
-function ScoreBar({ label, score, roast }: { label: string; score: number; roast: string }) {
+/* ── Animated counter hook ───────────────────────────── */
+
+function useCountUp(target: number, duration = 1200) {
+  const [value, setValue] = useState(0);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const start = performance.now();
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target * 10) / 10);
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+
+  return value;
+}
+
+/* ── Score bar component (animated) ──────────────────── */
+
+function ScoreBar({ label, score, roast, delay = 0 }: { label: string; score: number; roast: string; delay?: number }) {
   const pct = (score / 10) * 100;
   const color =
     score >= 7 ? "bg-emerald-500" : score >= 5 ? "bg-amber-500" : "bg-red-500";
+  const [visible, setVisible] = useState(false);
+  const [barWidth, setBarWidth] = useState(0);
+  const displayScore = useCountUp(visible ? score : 0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setVisible(true), delay);
+    const t2 = setTimeout(() => setBarWidth(pct), delay + 100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [delay, pct]);
 
   return (
-    <div className="rounded-xl border border-border bg-white p-6">
+    <div
+      className={`rounded-xl border border-border bg-white p-6 transition-all duration-500 ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold uppercase tracking-widest">{label}</h3>
-        <span className="text-2xl font-bold tracking-tight">{score}/10</span>
+        <span className="text-2xl font-bold tracking-tight">{displayScore}/10</span>
       </div>
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
         <div
-          className={`h-full rounded-full ${color} transition-all duration-1000`}
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full ${color} transition-all duration-1000 ease-out`}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
       <p className="mt-4 text-sm leading-relaxed text-muted">{roast}</p>
@@ -161,15 +80,288 @@ function ScoreBar({ label, score, roast }: { label: string; score: number; roast
   );
 }
 
-/* ── Main page ────────────────────────────────────────── */
+/* ── Overall score display (animated) ────────────────── */
 
-export default function BrandRoast() {
+function OverallScoreDisplay({ score }: { score: number }) {
+  const animated = useCountUp(score, 1500);
+  const color =
+    score >= 7
+      ? "text-emerald-500"
+      : score >= 5
+      ? "text-amber-500"
+      : "text-red-500";
+
+  return (
+    <div className="mt-6 inline-flex items-baseline gap-1">
+      <span className={`text-7xl font-bold tracking-tight ${color}`}>
+        {animated}
+      </span>
+      <span className="text-2xl font-bold text-zinc-300">/10</span>
+    </div>
+  );
+}
+
+/* ── History types ───────────────────────────────────── */
+
+interface RoastHistoryEntry {
+  brandName: string;
+  industry: string;
+  overall: number;
+  date: string;
+  s: number;
+  c: number;
+  n: number;
+  d: number;
+}
+
+const HISTORY_KEY = "arto_roast_history";
+
+function loadHistory(): RoastHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToHistory(entry: RoastHistoryEntry) {
+  const history = loadHistory();
+  // Avoid exact duplicates (same brand + industry)
+  const filtered = history.filter(
+    (h) => !(h.brandName === entry.brandName && h.industry === entry.industry)
+  );
+  // Most recent first, max 20
+  const updated = [entry, ...filtered].slice(0, 20);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  return updated;
+}
+
+/* ── Share helpers ───────────────────────────────────── */
+
+function buildShareUrl(brand: string, result: RoastResult): string {
+  const params = new URLSearchParams({
+    brand,
+    score: String(result.overall),
+    s: String(result.strategy.score),
+    c: String(result.creativity.score),
+    n: String(result.narrative.score),
+    d: String(result.digital.score),
+  });
+  return `${window.location.origin}/roast?${params.toString()}`;
+}
+
+function parseSharedResult(params: URLSearchParams): { brand: string; result: RoastResult } | null {
+  const brand = params.get("brand");
+  const score = params.get("score");
+  const s = params.get("s");
+  const c = params.get("c");
+  const n = params.get("n");
+  const d = params.get("d");
+
+  if (!brand || !score || !s || !c || !n || !d) return null;
+
+  const sNum = Number(s);
+  const cNum = Number(c);
+  const nNum = Number(n);
+  const dNum = Number(d);
+
+  if ([sNum, cNum, nNum, dNum].some((v) => isNaN(v) || v < 0 || v > 10)) return null;
+
+  const seed = hash(brand.toLowerCase());
+
+  return {
+    brand,
+    result: {
+      overall: Number(score),
+      strategy: { score: sNum, roast: pick(strategyRoasts, seed) },
+      creativity: { score: cNum, roast: pick(creativityRoasts, seed >> 2) },
+      narrative: { score: nNum, roast: pick(narrativeRoasts, seed >> 4) },
+      digital: { score: dNum, roast: pick(digitalRoasts, hash(brand)) },
+      verdict: pick(verdicts, seed >> 1),
+      improvements: (() => {
+        const imps = [
+          pick(improvementPool, seed),
+          pick(improvementPool, seed + 3),
+          pick(improvementPool, seed + 7),
+        ];
+        const unique = [...new Set(imps)];
+        while (unique.length < 3) {
+          unique.push(pick(improvementPool, seed + unique.length + 10));
+        }
+        return unique.slice(0, 3);
+      })(),
+    },
+  };
+}
+
+/* ── Social share panel ─────────────────────────────── */
+
+function SocialSharePanel({ brand, result }: { brand: string; result: RoastResult }) {
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = buildShareUrl(brand, result);
+  const shareText = `My brand "${brand}" scored ${result.overall}/10 on ARTO's Brand Roast. Think yours can do better?`;
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent(shareText);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      const input = document.createElement("input");
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const socials = [
+    {
+      label: "X / Twitter",
+      color: "hover:bg-black hover:text-white hover:border-black",
+      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      ),
+    },
+    {
+      label: "LinkedIn",
+      color: "hover:bg-[#0077b5] hover:text-white hover:border-[#0077b5]",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+        </svg>
+      ),
+    },
+    {
+      label: "WhatsApp",
+      color: "hover:bg-[#25d366] hover:text-white hover:border-[#25d366]",
+      href: `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+        </svg>
+      ),
+    },
+  ];
+
+  const ogBase = `/roast/og?brand=${encodeURIComponent(brand)}&score=${result.overall}&s=${result.strategy.score}&c=${result.creativity.score}&n=${result.narrative.score}&d=${result.digital.score}`;
+
+  return (
+    <div className="mt-6 flex flex-col items-center gap-4">
+      {/* Social share */}
+      <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Share your roast</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {socials.map((s) => (
+          <a
+            key={s.label}
+            href={s.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors ${s.color}`}
+          >
+            {s.icon}
+            {s.label}
+          </a>
+        ))}
+        <button
+          onClick={copyLink}
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100"
+        >
+          {copied ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+              Copied!
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="13" height="13" x="9" y="9" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              Copy link
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Download for Instagram */}
+      <div className="flex flex-wrap justify-center gap-2">
+        <p className="w-full text-center text-xs text-zinc-400">Download image for Instagram</p>
+        <a
+          href={`${ogBase}&format=square`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
+          download={`roast-${brand}-square.png`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Feed 1:1
+        </a>
+        <a
+          href={`${ogBase}&format=story`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-zinc-50"
+          download={`roast-${brand}-story.png`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Story 9:16
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/* ── Inner component (uses useSearchParams) ──────────── */
+
+function BrandRoastInner() {
+  const searchParams = useSearchParams();
   const [brandName, setBrandName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<RoastResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [stage, setStage] = useState(0);
+  const [isSharedView, setIsSharedView] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailUnlocked, setEmailUnlocked] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [history, setHistory] = useState<RoastHistoryEntry[]>([]);
+
+  // Load email + history from localStorage on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("arto_roast_email");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setEmailUnlocked(true);
+    }
+    setHistory(loadHistory());
+  }, []);
+
+  // Load shared results from URL params
+  useEffect(() => {
+    const shared = parseSharedResult(searchParams);
+    if (shared) {
+      setBrandName(shared.brand);
+      setResult(shared.result);
+      setIsSharedView(true);
+    }
+  }, [searchParams]);
 
   const stages = [
     "Scanning brand positioning...",
@@ -187,26 +379,86 @@ export default function BrandRoast() {
     setAnalyzing(true);
     setStage(0);
 
-    // Simulate analysis stages
+    // Run loading animation and API call in parallel
     let currentStage = 0;
-    const interval = setInterval(() => {
+    const stageInterval = setInterval(() => {
       currentStage++;
       if (currentStage < stages.length) {
         setStage(currentStage);
-      } else {
-        clearInterval(interval);
-        setAnalyzing(false);
-        setResult(generateRoast(brandName, industry, description));
       }
     }, 800);
+
+    const apiStart = Date.now();
+    const minDisplayMs = 3000; // Minimum time to show loading animation
+
+    fetch("/api/roast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandName, websiteUrl, industry, companySize, description }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const elapsed = Date.now() - apiStart;
+        const remaining = Math.max(0, minDisplayMs - elapsed);
+
+        // Wait for minimum display time so animation completes
+        setTimeout(() => {
+          clearInterval(stageInterval);
+          setAnalyzing(false);
+          const roastResult: RoastResult = data.result;
+          setResult(roastResult);
+          const updated = saveToHistory({
+            brandName,
+            industry,
+            overall: roastResult.overall,
+            date: new Date().toISOString(),
+            s: roastResult.strategy.score,
+            c: roastResult.creativity.score,
+            n: roastResult.narrative.score,
+            d: roastResult.digital.score,
+          });
+          setHistory(updated);
+        }, remaining);
+      })
+      .catch(() => {
+        // Client-side fallback if API is unreachable
+        const elapsed = Date.now() - apiStart;
+        const remaining = Math.max(0, minDisplayMs - elapsed);
+
+        setTimeout(() => {
+          clearInterval(stageInterval);
+          setAnalyzing(false);
+          const roastResult = generateDeterministicRoast(brandName, industry, description);
+          setResult(roastResult);
+          const updated = saveToHistory({
+            brandName,
+            industry,
+            overall: roastResult.overall,
+            date: new Date().toISOString(),
+            s: roastResult.strategy.score,
+            c: roastResult.creativity.score,
+            n: roastResult.narrative.score,
+            d: roastResult.digital.score,
+          });
+          setHistory(updated);
+        }, remaining);
+      });
   }
 
   function handleReset() {
     setResult(null);
     setBrandName("");
     setIndustry("");
+    setCompanySize("");
+    setWebsiteUrl("");
     setDescription("");
     setStage(0);
+    setIsSharedView(false);
+    // Clear URL params without reload
+    window.history.replaceState({}, "", "/roast");
   }
 
   return (
@@ -226,6 +478,8 @@ export default function BrandRoast() {
               STUDIO AI
             </span>
           </Link>
+
+          {/* Desktop nav */}
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors">
               Work
@@ -249,12 +503,57 @@ export default function BrandRoast() {
               Join Waitlist
             </a>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 md:hidden"
+            aria-label="Toggle menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {mobileMenuOpen ? (
+                <>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </>
+              ) : (
+                <>
+                  <line x1="4" y1="8" x2="20" y2="8" />
+                  <line x1="4" y1="16" x2="20" y2="16" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="border-t border-border px-6 py-4 md:hidden">
+            <div className="flex flex-col gap-4">
+              <Link href="/work" className="text-sm text-muted hover:text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Work
+              </Link>
+              <Link href="/roast" className="text-sm font-medium text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Brand Roast
+              </Link>
+              <Link href="/#pricing" className="text-sm text-muted hover:text-foreground transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Pricing
+              </Link>
+              <a
+                href="/#waitlist"
+                className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Join Waitlist
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
       <section className="border-b border-border bg-foreground text-white">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-24">
           <p className="mb-3 text-sm font-medium uppercase tracking-widest text-zinc-400">
             Free tool by ARTO Studio AI
           </p>
@@ -274,7 +573,7 @@ export default function BrandRoast() {
 
       {/* Form / Results */}
       <section className="flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:py-20">
           {!result && !analyzing && (
             <div className="mx-auto max-w-2xl">
               <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -283,47 +582,118 @@ export default function BrandRoast() {
               <p className="mt-2 text-muted">
                 Be honest — the more context you give, the sharper the roast.
               </p>
-              <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                <div>
-                  <label htmlFor="brandName" className="block text-sm font-medium">
-                    Brand name *
-                  </label>
-                  <input
-                    id="brandName"
-                    type="text"
-                    value={brandName}
-                    onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="e.g. Acme Corp"
-                    required
-                    className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
-                  />
+              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+
+                {/* Row 1: Brand name + Website */}
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="brandName" className="block text-sm font-medium">
+                      Brand name *
+                    </label>
+                    <input
+                      id="brandName"
+                      type="text"
+                      value={brandName}
+                      onChange={(e) => setBrandName(e.target.value)}
+                      placeholder="e.g. Acme Corp"
+                      required
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="websiteUrl" className="block text-sm font-medium">
+                      Website URL
+                      <span className="ml-1 text-xs font-normal text-zinc-400">(optional — improves accuracy)</span>
+                    </label>
+                    <input
+                      id="websiteUrl"
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://yourband.com"
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="industry" className="block text-sm font-medium">
-                    Industry *
-                  </label>
-                  <select
-                    id="industry"
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    required
-                    className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
-                  >
-                    <option value="">Select your industry</option>
-                    <option value="Technology">Technology</option>
-                    <option value="E-commerce">E-commerce / Retail</option>
-                    <option value="Food & Beverage">Food & Beverage</option>
-                    <option value="Finance">Finance / Fintech</option>
-                    <option value="Health & Wellness">Health & Wellness</option>
-                    <option value="Education">Education</option>
-                    <option value="Real Estate">Real Estate</option>
-                    <option value="Fashion">Fashion & Beauty</option>
-                    <option value="Entertainment">Entertainment & Media</option>
-                    <option value="SaaS">SaaS / B2B</option>
-                    <option value="Agency">Agency / Services</option>
-                    <option value="Other">Other</option>
-                  </select>
+
+                {/* Row 2: Industry + Company size */}
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="industry" className="block text-sm font-medium">
+                      Sector / Industry *
+                    </label>
+                    <select
+                      id="industry"
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      required
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
+                    >
+                      <option value="">Select your sector</option>
+                      <optgroup label="Technology">
+                        <option value="SaaS / B2B Software">SaaS / B2B Software</option>
+                        <option value="Consumer Tech">Consumer Tech / Apps</option>
+                        <option value="Fintech">Fintech</option>
+                        <option value="Healthtech">Healthtech / MedTech</option>
+                        <option value="Edtech">Edtech</option>
+                        <option value="Proptech">Proptech</option>
+                        <option value="AI / Data">AI / Data</option>
+                      </optgroup>
+                      <optgroup label="Consumer & Retail">
+                        <option value="E-commerce">E-commerce / Retail</option>
+                        <option value="Fashion & Beauty">Fashion & Beauty</option>
+                        <option value="Food & Beverage">Food & Beverage</option>
+                        <option value="CPG">CPG / Consumer Goods</option>
+                        <option value="Luxury">Luxury & Premium</option>
+                      </optgroup>
+                      <optgroup label="Services">
+                        <option value="Agency">Agency / Creative Services</option>
+                        <option value="Professional Services">Professional Services</option>
+                        <option value="Legal">Legal / Consulting</option>
+                        <option value="Finance">Finance / Investment</option>
+                        <option value="Real Estate">Real Estate / Architecture</option>
+                        <option value="Education">Education / Training</option>
+                        <option value="Health & Wellness">Health & Wellness</option>
+                        <option value="Travel & Hospitality">Travel & Hospitality</option>
+                      </optgroup>
+                      <optgroup label="Industry">
+                        <option value="Manufacturing">Manufacturing / Industrial</option>
+                        <option value="Automotive">Automotive</option>
+                        <option value="Energy">Energy / Sustainability</option>
+                        <option value="Construction">Construction / Engineering</option>
+                        <option value="Logistics">Logistics / Supply Chain</option>
+                      </optgroup>
+                      <optgroup label="Media & Culture">
+                        <option value="Entertainment">Entertainment / Media</option>
+                        <option value="Sports & Fitness">Sports & Fitness</option>
+                        <option value="Arts & Culture">Arts, Culture & Design</option>
+                        <option value="NGO / Social Impact">NGO / Social Impact</option>
+                      </optgroup>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="companySize" className="block text-sm font-medium">
+                      Company size
+                    </label>
+                    <select
+                      id="companySize"
+                      value={companySize}
+                      onChange={(e) => setCompanySize(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground bg-white"
+                    >
+                      <option value="">Select size</option>
+                      <option value="solo">Solo / Freelancer (1)</option>
+                      <option value="micro">Micro (2–10 people)</option>
+                      <option value="small">Small (11–50 people)</option>
+                      <option value="medium">Mid-size (51–200 people)</option>
+                      <option value="large">Large (201–1,000 people)</option>
+                      <option value="enterprise">Enterprise (1,000+)</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* Description */}
                 <div>
                   <label htmlFor="description" className="block text-sm font-medium">
                     Brief description of your brand
@@ -337,6 +707,7 @@ export default function BrandRoast() {
                     className="mt-2 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground resize-none"
                   />
                 </div>
+
                 <button
                   type="submit"
                   className="w-full rounded-full bg-foreground px-8 py-4 text-base font-medium text-white transition-colors hover:bg-zinc-800"
@@ -348,12 +719,57 @@ export default function BrandRoast() {
                   and strategic inspiration.
                 </p>
               </form>
+
+              {/* Previous roasts */}
+              {history.length > 0 && (
+                <div className="mt-12 border-t border-border pt-10">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                    Previous Roasts
+                  </h3>
+                  <div className="mt-4 space-y-3">
+                    {history.map((entry, i) => {
+                      const scoreColor =
+                        entry.overall >= 7
+                          ? "text-emerald-500"
+                          : entry.overall >= 5
+                          ? "text-amber-500"
+                          : "text-red-500";
+                      return (
+                        <button
+                          key={`${entry.brandName}-${i}`}
+                          onClick={() => {
+                            setBrandName(entry.brandName);
+                            setIndustry(entry.industry);
+                            setDescription("");
+                            setResult(generateDeterministicRoast(entry.brandName, entry.industry, ""));
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-zinc-50"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{entry.brandName}</p>
+                            <p className="text-xs text-muted">
+                              {entry.industry} &middot;{" "}
+                              {new Date(entry.date).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          <span className={`ml-4 text-lg font-bold ${scoreColor}`}>
+                            {entry.overall}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Analyzing animation */}
           {analyzing && (
-            <div className="mx-auto max-w-2xl text-center py-20">
+            <div className="mx-auto max-w-2xl text-center py-12 md:py-20 animate-fade-in">
               <div className="mx-auto mb-8 h-16 w-16 animate-spin rounded-full border-4 border-zinc-200 border-t-foreground" />
               <h2 className="text-2xl font-bold tracking-tight">
                 Analyzing {brandName}...
@@ -372,7 +788,7 @@ export default function BrandRoast() {
 
           {/* Results */}
           {result && (
-            <div>
+            <div className="animate-fade-in">
               {/* Overall Score */}
               <div className="mb-12 text-center">
                 <p className="text-sm font-medium uppercase tracking-widest text-muted">
@@ -382,83 +798,156 @@ export default function BrandRoast() {
                   {brandName}
                 </h2>
                 <p className="mt-1 text-sm text-muted">{industry}</p>
-                <div className="mt-6 inline-flex items-baseline gap-1">
-                  <span
-                    className={`text-7xl font-bold tracking-tight ${
-                      result.overall >= 7
-                        ? "text-emerald-500"
-                        : result.overall >= 5
-                        ? "text-amber-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {result.overall}
-                  </span>
-                  <span className="text-2xl font-bold text-zinc-300">/10</span>
-                </div>
+                <OverallScoreDisplay score={result.overall} />
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted">
                   Weighted: Strategy (30%) + Creativity (25%) + Narrative (25%) + Digital (20%)
                 </p>
+                <SocialSharePanel brand={brandName} result={result} />
               </div>
 
-              {/* Score cards */}
-              <div className="grid gap-6 md:grid-cols-2">
-                <ScoreBar label="Strategy" score={result.strategy.score} roast={result.strategy.roast} />
-                <ScoreBar label="Creativity" score={result.creativity.score} roast={result.creativity.roast} />
-                <ScoreBar label="Narrative" score={result.narrative.score} roast={result.narrative.roast} />
-                <ScoreBar label="Digital" score={result.digital.score} roast={result.digital.roast} />
-              </div>
+              {/* Email gate — unlock full report */}
+              {!emailUnlocked && !isSharedView ? (
+                <div className="mx-auto max-w-lg">
+                  <div className="rounded-2xl border border-border bg-zinc-50 p-8 text-center md:p-10">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold tracking-tight">
+                      Unlock your full report
+                    </h3>
+                    <p className="mt-2 text-sm text-muted">
+                      Enter your email to see the detailed breakdown by pillar, your verdict, and actionable improvements.
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const trimmed = email.trim();
+                        if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                          setEmailError("Please enter a valid email address.");
+                          return;
+                        }
+                        setEmailError("");
+                        localStorage.setItem("arto_roast_email", trimmed);
+                        setEmailUnlocked(true);
+                        // Send email to server for trace association
+                        fetch("/api/roast/email", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email: trimmed, brandName }),
+                        }).catch(() => {}); // fire-and-forget
+                      }}
+                      className="mt-6"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                          placeholder="you@company.com"
+                          className="flex-1 rounded-xl border border-border px-4 py-3 text-sm outline-none transition-colors focus:border-foreground"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-full bg-foreground px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 whitespace-nowrap"
+                        >
+                          Unlock full report
+                        </button>
+                      </div>
+                      {emailError && (
+                        <p className="mt-2 text-xs text-red-500">{emailError}</p>
+                      )}
+                    </form>
+                    <p className="mt-4 text-xs text-zinc-400">
+                      No spam. We may send you branding tips and ARTO updates.
+                    </p>
+                  </div>
 
-              {/* Verdict */}
-              <div className="mt-12 rounded-2xl border border-border bg-zinc-50 p-8 md:p-10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
-                  The Verdict
-                </h3>
-                <p className="mt-4 text-lg font-medium leading-relaxed">
-                  {result.verdict}
-                </p>
-              </div>
+                  {/* Blurred preview of what's behind the gate */}
+                  <div className="mt-6 select-none pointer-events-none" aria-hidden="true">
+                    <div className="grid gap-6 md:grid-cols-2 blur-md opacity-50">
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                      <div className="rounded-xl border border-border bg-white p-6 h-32" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Score cards */}
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <ScoreBar label="Strategy" score={result.strategy.score} roast={result.strategy.roast} delay={0} />
+                    <ScoreBar label="Creativity" score={result.creativity.score} roast={result.creativity.roast} delay={150} />
+                    <ScoreBar label="Narrative" score={result.narrative.score} roast={result.narrative.roast} delay={300} />
+                    <ScoreBar label="Digital" score={result.digital.score} roast={result.digital.roast} delay={450} />
+                  </div>
 
-              {/* Improvements */}
-              <div className="mt-8 rounded-2xl border border-border p-8 md:p-10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
-                  Where to Start
-                </h3>
-                <ul className="mt-4 space-y-4">
-                  {result.improvements.map((imp, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-white">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm leading-relaxed text-muted">{imp}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  {/* Verdict */}
+                  <div className="mt-12 rounded-2xl border border-border bg-zinc-50 p-8 md:p-10">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                      The Verdict
+                    </h3>
+                    <p className="mt-4 text-lg font-medium leading-relaxed">
+                      {result.verdict}
+                    </p>
+                  </div>
+
+                  {/* Improvements */}
+                  <div className="mt-8 rounded-2xl border border-border p-8 md:p-10">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted">
+                      Where to Start
+                    </h3>
+                    <ul className="mt-4 space-y-4">
+                      {result.improvements.map((imp, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <span className="text-sm leading-relaxed text-muted">{imp}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
 
               {/* CTA */}
               <div className="mt-12 rounded-2xl bg-foreground p-8 text-center text-white md:p-12">
                 <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  Ready to fix what&apos;s broken?
+                  {isSharedView ? "Think your brand can do better?" : "Ready to fix what's broken?"}
                 </h3>
                 <p className="mx-auto mt-4 max-w-lg text-zinc-400">
-                  This roast is just the surface. ARTO Studio AI gives you a complete
-                  brand strategy, creative direction, and content system — powered by
-                  15+ years of real methodology.
+                  {isSharedView
+                    ? "Get your own free brand roast — scored across Strategy, Creativity, Narrative, and Digital using ARTO's real methodology."
+                    : "This roast is just the surface. ARTO Studio AI gives you a complete brand strategy, creative direction, and content system — powered by 15+ years of real methodology."}
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <a
-                    href="/#waitlist"
-                    className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
-                  >
-                    Start 7-day free trial
-                  </a>
-                  <button
-                    onClick={handleReset}
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
-                  >
-                    Roast another brand
-                  </button>
+                  {isSharedView ? (
+                    <button
+                      onClick={handleReset}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                    >
+                      Roast my brand
+                    </button>
+                  ) : (
+                    <>
+                      <a
+                        href="/#waitlist"
+                        className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-zinc-100"
+                      >
+                        Start 7-day free trial
+                      </a>
+                      <button
+                        onClick={handleReset}
+                        className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-8 py-3.5 text-base font-medium transition-colors hover:bg-zinc-800"
+                      >
+                        Roast another brand
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -487,5 +976,15 @@ export default function BrandRoast() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ── Page export (Suspense boundary for useSearchParams) ── */
+
+export default function BrandRoast() {
+  return (
+    <Suspense fallback={null}>
+      <BrandRoastInner />
+    </Suspense>
   );
 }

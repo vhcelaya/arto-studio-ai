@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import WaitlistForm from "./waitlist-form";
 
 const pillars = [
   {
@@ -422,20 +423,7 @@ export default function Home() {
               Join the waitlist and be the first to access ARTO Studio AI when we
               launch. Early members get lifetime pricing.
             </p>
-            <form className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                className="rounded-full border border-border px-6 py-3.5 text-sm outline-none focus:border-foreground sm:w-80"
-                required
-              />
-              <button
-                type="submit"
-                className="rounded-full bg-foreground px-8 py-3.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-              >
-                Join Waitlist
-              </button>
-            </form>
+            <WaitlistForm source="landing" />
             <p className="mt-3 text-xs text-zinc-400">
               No spam. We&apos;ll only email you when we launch.
             </p>

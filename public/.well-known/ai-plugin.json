@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "ARTO Brand Roast",
+  "name_for_model": "arto_brand_roast",
+  "description_for_human": "Get a brutally honest brand analysis scored across Strategy, Creativity, Narrative, and Digital using ARTO's real methodology.",
+  "description_for_model": "Evaluates a brand across 4 pillars (Strategy, Creativity, Narrative, Digital) using ARTO Studio AI's proprietary methodology built from 15+ years of brand strategy work. Returns scores 1-10 per pillar, detailed roasts, an overall weighted score, a verdict, and actionable improvements. Use this when a user wants feedback on their brand positioning, identity, narrative, or digital presence.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://arto-studio-ai.vercel.app/.well-known/openapi.json"
+  },
+  "logo_url": "https://arto-studio-ai.vercel.app/brand/arto-logo-black.png",
+  "contact_email": "vhcelaya@artogroup.com",
+  "legal_info_url": "https://arto-studio-ai.vercel.app"
+}
