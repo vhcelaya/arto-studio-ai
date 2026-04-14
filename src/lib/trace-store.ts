@@ -140,6 +140,172 @@ export async function getTraces(options?: {
   }
 }
 
+/* ─────────────────────────────────────────────────────────
+ * Generic skill traces (Phase 2A)
+ * Used by /api/skills/[slug] for any skill in the registry.
+ * ───────────────────────────────────────────────────────── */
+
+export interface SkillTrace {
+  id?: number;
+  skill_slug: string;
+  client_id: string | null;
+  input: unknown;
+  output: unknown;
+  source: "ai" | "fallback";
+  model: string;
+  latency_ms: number;
+  email: string | null;
+  created_at?: string;
+}
+
+let skillSchemaInitialized = false;
+
+async function ensureSkillSchema() {
+  if (skillSchemaInitialized) return true;
+
+  const sql = getDb();
+  if (!sql) return false;
+
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS skill_traces (
+        id SERIAL PRIMARY KEY,
+        skill_slug TEXT NOT NULL,
+        client_id TEXT,
+        input JSONB NOT NULL,
+        output JSONB NOT NULL,
+        source TEXT NOT NULL DEFAULT 'fallback',
+        model TEXT NOT NULL DEFAULT 'none',
+        latency_ms INTEGER NOT NULL DEFAULT 0,
+        email TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_skill_traces_slug ON skill_traces (skill_slug)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_skill_traces_created ON skill_traces (created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_skill_traces_client ON skill_traces (client_id)`;
+    skillSchemaInitialized = true;
+    return true;
+  } catch (error) {
+    console.error("[trace-store] Failed to initialize skill schema:", error);
+    return false;
+  }
+}
+
+export async function saveSkillTrace(trace: SkillTrace): Promise<boolean> {
+  const ready = await ensureSkillSchema();
+  if (!ready) return false;
+
+  const sql = getDb()!;
+
+  try {
+    await sql`
+      INSERT INTO skill_traces (
+        skill_slug, client_id, input, output, source, model, latency_ms, email
+      ) VALUES (
+        ${trace.skill_slug}, ${trace.client_id},
+        ${JSON.stringify(trace.input)}, ${JSON.stringify(trace.output)},
+        ${trace.source}, ${trace.model}, ${trace.latency_ms}, ${trace.email}
+      )
+    `;
+    return true;
+  } catch (error) {
+    console.error("[trace-store] Failed to save skill trace:", error);
+    return false;
+  }
+}
+
+export async function getSkillTraces(options?: {
+  skillSlug?: string;
+  clientId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<SkillTrace[]> {
+  const ready = await ensureSkillSchema();
+  if (!ready) return [];
+
+  const sql = getDb()!;
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  try {
+    if (options?.skillSlug && options?.clientId) {
+      const rows = await sql`
+        SELECT * FROM skill_traces
+        WHERE skill_slug = ${options.skillSlug} AND client_id = ${options.clientId}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      return rows as SkillTrace[];
+    }
+    if (options?.skillSlug) {
+      const rows = await sql`
+        SELECT * FROM skill_traces
+        WHERE skill_slug = ${options.skillSlug}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      return rows as SkillTrace[];
+    }
+    if (options?.clientId) {
+      const rows = await sql`
+        SELECT * FROM skill_traces
+        WHERE client_id = ${options.clientId}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      return rows as SkillTrace[];
+    }
+    const rows = await sql`
+      SELECT * FROM skill_traces
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+    return rows as SkillTrace[];
+  } catch (error) {
+    console.error("[trace-store] Failed to query skill traces:", error);
+    return [];
+  }
+}
+
+export async function getSkillStats(): Promise<{
+  total: number;
+  bySkill: { skill_slug: string; count: number; avgLatency: number }[];
+  bySource: { ai: number; fallback: number };
+} | null> {
+  const ready = await ensureSkillSchema();
+  if (!ready) return null;
+
+  const sql = getDb()!;
+
+  try {
+    const [totals] = await sql`
+      SELECT
+        COUNT(*)::int as total,
+        COUNT(*) FILTER (WHERE source = 'ai')::int as ai_count,
+        COUNT(*) FILTER (WHERE source = 'fallback')::int as fallback_count
+      FROM skill_traces
+    `;
+    const bySkill = await sql`
+      SELECT
+        skill_slug,
+        COUNT(*)::int as count,
+        ROUND(AVG(latency_ms)::numeric, 0)::int as avg_latency
+      FROM skill_traces
+      GROUP BY skill_slug
+      ORDER BY count DESC
+    `;
+    return {
+      total: totals.total,
+      bySource: { ai: totals.ai_count, fallback: totals.fallback_count },
+      bySkill: bySkill as { skill_slug: string; count: number; avgLatency: number }[],
+    };
+  } catch (error) {
+    console.error("[trace-store] Failed to get skill stats:", error);
+    return null;
+  }
+}
+
 export async function getTraceStats(): Promise<{
   total: number;
   avgOverall: number;

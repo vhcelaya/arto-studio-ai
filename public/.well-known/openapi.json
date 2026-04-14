@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ARTO Brand Roast API",
-    "description": "Evaluate any brand using ARTO Studio AI's proprietary methodology. Returns scores across Strategy, Creativity, Narrative, and Digital pillars with detailed roasts and actionable improvements.",
-    "version": "1.0.0",
+    "title": "ARTO Studio AI — Skills Library API",
+    "description": "A plug-and-play library of brand strategy skills built from ARTO's 15+ years of real work. Brand Roast is free and public; all other skills require a client API key (x-arto-api-key) issued when contracting ARTO services.",
+    "version": "2.0.0",
     "contact": {
       "name": "ARTO Studio AI",
       "email": "vhcelaya@artogroup.com"
@@ -15,19 +15,92 @@
       "description": "Production"
     }
   ],
+  "security": [
+    {},
+    { "ArtoApiKey": [] }
+  ],
   "paths": {
-    "/api/roast": {
+    "/api/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "summary": "List available skills",
+        "description": "Returns the catalog of skills. Without an API key, returns only public skills (currently just brand-roast). With a valid x-arto-api-key header, also returns the private skills that client is permitted to use.",
+        "security": [{}, { "ArtoApiKey": [] }],
+        "responses": {
+          "200": {
+            "description": "Skill catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/SkillCatalogEntry" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/{slug}": {
       "post": {
-        "operationId": "roastBrand",
-        "summary": "Roast a brand",
-        "description": "Submit brand details and receive a brutally honest evaluation scored across 4 pillars using ARTO's methodology built from 15+ years of real brand strategy work.",
+        "operationId": "runSkill",
+        "summary": "Execute a skill by slug",
+        "description": "Canonical skill invocation endpoint. The request body schema depends on the skill — see GET /api/skills for the catalog. Public skills (like brand-roast) need no auth. Private skills require x-arto-api-key and return 401 if missing, 403 if the client is not allowed to use that skill, 429 if over their quota.",
+        "security": [{}, { "ArtoApiKey": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "Skill slug (e.g. 'brand-roast').",
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RoastRequest"
+                "type": "object",
+                "description": "Skill-specific input. Use GET /api/skills to discover required fields. For brand-roast, use RoastRequest."
               }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill output",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SkillResponse" }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Missing or invalid API key" },
+          "403": { "description": "Client not permitted to use this skill" },
+          "404": { "description": "Skill slug not found" },
+          "429": { "description": "Rate limit exceeded" },
+          "503": { "description": "Skill execution failed and no fallback available" }
+        }
+      }
+    },
+    "/api/roast": {
+      "post": {
+        "operationId": "roastBrand",
+        "summary": "Roast a brand (legacy alias for brand-roast skill)",
+        "description": "Public, free marketing-funnel endpoint. Internally routes to the brand-roast skill and returns the legacy { source, result } shape for backward compatibility. Rate limited per IP.",
+        "security": [{}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RoastRequest" }
             }
           }
         },
@@ -36,9 +109,7 @@
             "description": "Brand roast result",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoastResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/RoastResponse" }
               }
             }
           },
@@ -77,7 +148,7 @@
       "get": {
         "operationId": "getTraces",
         "summary": "Query roast traces",
-        "description": "Retrieve past roast traces with optional filtering. Use view=stats for aggregate statistics.",
+        "description": "Retrieve past roast traces with optional filtering. Use view=stats for aggregate statistics. Admin-only.",
         "parameters": [
           {
             "name": "view",
@@ -88,19 +159,16 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Max traces to return (default 50, max 100)",
             "schema": { "type": "integer", "default": 50, "maximum": 100 }
           },
           {
             "name": "offset",
             "in": "query",
-            "description": "Offset for pagination",
             "schema": { "type": "integer", "default": 0 }
           },
           {
             "name": "industry",
             "in": "query",
-            "description": "Filter by industry",
             "schema": { "type": "string" }
           }
         ],
@@ -123,102 +191,81 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "ArtoApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-arto-api-key",
+        "description": "Client API key issued by ARTO. Required for all private skills. Format: arto_live_*"
+      }
+    },
     "schemas": {
+      "SkillCatalogEntry": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "public": { "type": "boolean" },
+          "requiresWebFetch": { "type": "boolean" },
+          "inputFields": { "type": "array", "items": { "type": "string" } },
+          "outputFields": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "SkillResponse": {
+        "type": "object",
+        "properties": {
+          "skill": { "type": "string" },
+          "source": { "type": "string", "enum": ["ai", "fallback"] },
+          "output": { "type": "object", "description": "Skill-specific structured output" },
+          "latencyMs": { "type": "integer" },
+          "model": { "type": "string" }
+        }
+      },
       "RoastRequest": {
         "type": "object",
         "required": ["brandName", "industry"],
         "properties": {
-          "brandName": {
-            "type": "string",
-            "maxLength": 100,
-            "description": "The brand name to evaluate"
-          },
-          "industry": {
-            "type": "string",
-            "description": "The brand's industry/sector",
-            "enum": [
-              "SaaS / B2B Software", "Consumer Tech", "Fintech", "Healthtech",
-              "Edtech", "Proptech", "AI / Data", "E-commerce", "Fashion & Beauty",
-              "Food & Beverage", "CPG", "Luxury", "Agency", "Professional Services",
-              "Legal", "Finance", "Real Estate", "Education", "Health & Wellness",
-              "Travel & Hospitality", "Manufacturing", "Automotive", "Energy",
-              "Construction", "Logistics", "Entertainment", "Sports & Fitness",
-              "Arts & Culture", "NGO / Social Impact", "Other"
-            ]
-          },
-          "websiteUrl": {
-            "type": "string",
-            "format": "uri",
-            "maxLength": 200,
-            "description": "Brand's website URL (improves accuracy)"
-          },
+          "brandName": { "type": "string", "maxLength": 100 },
+          "industry": { "type": "string" },
+          "websiteUrl": { "type": "string", "format": "uri", "maxLength": 200 },
           "companySize": {
             "type": "string",
-            "enum": ["solo", "micro", "small", "medium", "large", "enterprise"],
-            "description": "Company size tier"
+            "enum": ["solo", "micro", "small", "medium", "large", "enterprise"]
           },
-          "description": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "What the brand does, its audience, and differentiators"
-          }
+          "description": { "type": "string", "maxLength": 500 }
         }
       },
       "PillarScore": {
         "type": "object",
         "properties": {
-          "score": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 10,
-            "description": "Score from 1 to 10"
-          },
-          "roast": {
-            "type": "string",
-            "description": "2-3 sentence evaluation of this pillar"
-          }
+          "score": { "type": "number", "minimum": 1, "maximum": 10 },
+          "roast": { "type": "string" }
         }
       },
       "RoastResult": {
         "type": "object",
         "properties": {
-          "overall": {
-            "type": "number",
-            "description": "Weighted overall score: Strategy(30%) + Creativity(25%) + Narrative(25%) + Digital(20%)"
-          },
+          "overall": { "type": "number" },
           "strategy": { "$ref": "#/components/schemas/PillarScore" },
           "creativity": { "$ref": "#/components/schemas/PillarScore" },
           "narrative": { "$ref": "#/components/schemas/PillarScore" },
           "digital": { "$ref": "#/components/schemas/PillarScore" },
-          "verdict": {
-            "type": "string",
-            "description": "2-3 sentence overall verdict"
-          },
-          "improvements": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "3-5 specific, actionable improvements ranked by impact"
-          }
+          "verdict": { "type": "string" },
+          "improvements": { "type": "array", "items": { "type": "string" } }
         }
       },
       "RoastResponse": {
         "type": "object",
         "properties": {
-          "source": {
-            "type": "string",
-            "enum": ["ai", "fallback"],
-            "description": "'ai' when powered by Claude, 'fallback' when using deterministic scoring"
-          },
+          "source": { "type": "string", "enum": ["ai", "fallback"] },
           "result": { "$ref": "#/components/schemas/RoastResult" }
         }
       },
       "TracesListResponse": {
         "type": "object",
         "properties": {
-          "traces": {
-            "type": "array",
-            "items": { "type": "object" }
-          },
+          "traces": { "type": "array", "items": { "type": "object" } },
           "count": { "type": "integer" }
         }
       },

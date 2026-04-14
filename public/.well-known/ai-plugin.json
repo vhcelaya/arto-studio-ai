@@ -1,11 +1,13 @@
 {
   "schema_version": "v1",
-  "name_for_human": "ARTO Brand Roast",
-  "name_for_model": "arto_brand_roast",
-  "description_for_human": "Get a brutally honest brand analysis scored across Strategy, Creativity, Narrative, and Digital using ARTO's real methodology.",
-  "description_for_model": "Evaluates a brand across 4 pillars (Strategy, Creativity, Narrative, Digital) using ARTO Studio AI's proprietary methodology built from 15+ years of brand strategy work. Returns scores 1-10 per pillar, detailed roasts, an overall weighted score, a verdict, and actionable improvements. Use this when a user wants feedback on their brand positioning, identity, narrative, or digital presence.",
+  "name_for_human": "ARTO Studio AI",
+  "name_for_model": "arto_studio_ai",
+  "description_for_human": "ARTO Studio AI — a plug-and-play library of brand strategy skills built from 15+ years of real work. Start with the public Brand Roast.",
+  "description_for_model": "ARTO Studio AI exposes ARTO's proprietary brand strategy methodology as a library of composable skills. The public Brand Roast skill (slug: brand-roast) evaluates a brand across 4 pillars (Strategy, Creativity, Narrative, Digital) and is free to call via POST /api/roast or POST /api/skills/brand-roast. Additional skills (brand positioning, content calendars, social copy, creative direction, SEO audits, weekly strategy reports, etc.) are gated and require an x-arto-api-key header issued to ARTO clients. Call GET /api/skills to discover the catalog. Use this when a user wants professional-grade brand strategy feedback or production-ready brand deliverables.",
   "auth": {
-    "type": "none"
+    "type": "user_http",
+    "authorization_type": "bearer",
+    "instructions": "Public skills (like brand-roast) require no auth. Private skills require a client API key passed as the x-arto-api-key header. Contact ARTO to get a key."
   },
   "api": {
     "type": "openapi",
