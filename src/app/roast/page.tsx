@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, Component, type ErrorInfo, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -415,6 +415,11 @@ function BrandRoastInner() {
       .then((data) => {
         const elapsed = Date.now() - apiStart;
         const remaining = Math.max(0, minDisplayMs - elapsed);
+
+        // Validate response structure
+        if (!data?.result?.strategy?.score || !data?.result?.verdict) {
+          throw new Error("Invalid API response structure");
+        }
 
         // Wait for minimum display time so animation completes
         setTimeout(() => {
@@ -994,12 +999,55 @@ function BrandRoastInner() {
   );
 }
 
+/* ── Error boundary ────────────────────────────────────── */
+
+class RoastErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[BrandRoast] Error boundary caught:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white p-8 text-center">
+          <h1 className="text-2xl font-bold">Something went wrong</h1>
+          <p className="mt-2 text-sm text-zinc-500">{this.state.error}</p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: "" });
+              window.location.href = "/roast";
+            }}
+            className="mt-6 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-white"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /* ── Page export (Suspense boundary for useSearchParams) ── */
 
 export default function BrandRoast() {
   return (
-    <Suspense fallback={null}>
-      <BrandRoastInner />
-    </Suspense>
+    <RoastErrorBoundary>
+      <Suspense fallback={null}>
+        <BrandRoastInner />
+      </Suspense>
+    </RoastErrorBoundary>
   );
 }

@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
     const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
     const knowledge = getKnowledgeContext();
 
+    const hasUrl = Boolean(websiteUrl);
     const userMessage = [
       `Brand: ${brandName}`,
       `Industry: ${industry}`,
@@ -151,16 +152,30 @@ export async function POST(request: NextRequest) {
       `Website: ${websiteUrl || "Not provided"}`,
       `Description: ${description || "Not provided"}`,
       "",
-      "Evaluate this brand using the ARTO methodology and deliver your roast.",
+      hasUrl
+        ? `IMPORTANT: You MUST use the web_fetch tool to visit ${websiteUrl} and analyze the actual website content, visual identity, messaging, and structure BEFORE delivering your roast. Base your evaluation on what you actually observe, not on assumptions from the brand name. After fetching, call the deliver_roast tool with your evaluation.`
+        : "Evaluate this brand using the ARTO methodology and deliver your roast by calling the deliver_roast tool.",
     ].join("\n");
 
-    const response = await anthropic.messages.create({
+    // Build tools list — include web_fetch when URL is provided
+    const tools: Array<Record<string, unknown>> = [roastTool as unknown as Record<string, unknown>];
+    if (hasUrl) {
+      tools.unshift({
+        type: "web_fetch_20250910",
+        name: "web_fetch",
+        max_uses: 3,
+        max_content_tokens: 50000,
+      });
+    }
+
+    const response = await anthropic.beta.messages.create({
       model,
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: buildSystemPrompt(knowledge),
-      tools: [roastTool],
-      tool_choice: { type: "tool", name: "deliver_roast" },
+      tools: tools as never,
+      tool_choice: hasUrl ? { type: "auto" } : { type: "tool", name: "deliver_roast" },
       messages: [{ role: "user", content: userMessage }],
+      betas: hasUrl ? ["web-fetch-2025-09-10"] : [],
     });
 
     // Extract tool_use result

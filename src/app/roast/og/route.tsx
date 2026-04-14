@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
         <div
           style={{
             display: "flex",
-            flex: isVertical ? "unset" : 1,
+            ...(isVertical ? {} : { flex: 1 }),
             flexDirection: isVertical || isSquare ? "column" : "row",
             alignItems: isVertical || isSquare ? "flex-start" : "center",
             justifyContent: isVertical || isSquare ? "center" : "space-between",
@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
                 alignItems: isVertical ? "center" : "flex-start",
                 justifyContent: isVertical ? "space-between" : "flex-start",
                 gap: isVertical ? "0" : "4px",
-                flex: isVertical ? "unset" : 1,
+                ...(isVertical ? {} : { flex: 1 }),
               }}
             >
               <span
