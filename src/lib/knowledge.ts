@@ -15,6 +15,7 @@ import path from "path";
 const KNOWLEDGE_MAP: Record<string, string> = {
   strategy: "knowledge/methodology/strategy.md",
   narrative: "knowledge/methodology/narrative.md",
+  positioning: "knowledge/methodology/positioning.md",
   rubric: "knowledge/quality/rubric.md",
   trends: "knowledge/trends/current.md",
   // Future keys — placeholders, will resolve to empty string until files exist:

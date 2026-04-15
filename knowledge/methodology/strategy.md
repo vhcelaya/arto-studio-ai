@@ -1,3 +1,8 @@
+---
+last_reviewed: 2026-04-15
+owner: victor
+---
+
 # ARTO Strategy Framework
 
 ## Qué es Strategy para ARTO

@@ -1,3 +1,8 @@
+---
+last_reviewed: 2026-04-15
+owner: victor
+---
+
 # ARTO Narrative Playbook
 
 ## Qué es Narrative para ARTO

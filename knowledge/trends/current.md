@@ -1,3 +1,8 @@
+---
+last_reviewed: 2026-04-15
+owner: victor
+---
+
 # Tendencias Actuales — ARTO Studio AI
 
 **Última actualización:** Marzo 2026

@@ -1,3 +1,8 @@
+---
+last_reviewed: 2026-04-15
+owner: victor
+---
+
 # ARTO Quality Rubric — Auto-Evaluación
 
 Cada entregable producido por ARTO Studio AI se evalúa automáticamente con esta rúbrica antes de entregarse al cliente.
