@@ -37,7 +37,13 @@ Apply these automatically when detected:
 - Improvements should be specific and actionable — not generic advice
 - Calibrate based on the brand's industry, size, and description
 - Reference current trends (anti-polish movement, community > audience, AI transparency, etc.) when relevant
-- Be especially sharp about brands that use corporate clichés, lack tension, or put themselves as the hero instead of the customer`;
+- Be especially sharp about brands that use corporate clichés, lack tension, or put themselves as the hero instead of the customer
+
+## Output format — read this twice
+
+- \`verdict\` MUST be a single plain string (2-3 sentences of prose). Do NOT nest objects, scores, or JSON inside it. If you feel the urge to add structure, put it in the pillar roasts instead.
+- \`improvements\` MUST be a JSON array of 3 to 5 plain strings. Each string is one actionable recommendation. Do NOT wrap the array in a string. Do NOT return it as a single string with bullets.
+- All pillar \`roast\` fields are plain strings. All \`score\` fields are numbers 1-10.`;
 }
 
 export const roastTool: Tool = {
@@ -110,13 +116,13 @@ export const roastTool: Tool = {
       verdict: {
         type: "string" as const,
         description:
-          "2-3 sentence overall verdict summarizing the brand's position and biggest opportunity",
+          "A single plain-text string, 2-3 sentences summarizing the brand's position and biggest opportunity. NOT a nested object. NOT stringified JSON. Plain prose only.",
       },
       improvements: {
         type: "array" as const,
         items: { type: "string" as const },
         description:
-          "3 to 5 specific, actionable improvement recommendations ranked by impact",
+          "Array of 3-5 plain strings. Each element is one actionable recommendation sentence, ranked by impact. The field itself must be a JSON array literal, never a stringified array.",
       },
     },
     required: [

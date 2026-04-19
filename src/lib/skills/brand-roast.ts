@@ -76,7 +76,7 @@ export const brandRoastSkill: SkillDefinition<RoastRequest, RoastResult> = {
     overall: weightedOverall(out),
     improvements: out.improvements.slice(0, 5),
   }),
-  maxTokens: 4000,
+  maxTokens: 4500,
 };
 
 registerSkill(brandRoastSkill);

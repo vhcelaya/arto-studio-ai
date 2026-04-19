@@ -17,6 +17,78 @@ import {
   improvementPool,
 } from "@/lib/roast-fallback";
 
+/* ── Defensive normalizer ─────────────────────────────
+ * Claude occasionally drifts from the tool schema:
+ * - `improvements` may come back as a (sometimes truncated) string instead of an array.
+ * - `verdict` may come back as a stringified JSON object (e.g. '{"score":1.5,"roast":"..."}').
+ * This helper coerces whatever shape arrives into a valid RoastResult so the
+ * UI never crashes on .map() or on rendering a non-string.
+ */
+function normalizeRoastResult(raw: unknown): RoastResult {
+  const r = (raw ?? {}) as Record<string, unknown>;
+
+  // improvements: accept real array, stringified array, or garbage
+  let improvements: string[] = [];
+  if (Array.isArray(r.improvements)) {
+    improvements = (r.improvements as unknown[]).filter(
+      (s): s is string => typeof s === "string"
+    );
+  } else if (typeof r.improvements === "string") {
+    try {
+      const parsed: unknown = JSON.parse(r.improvements);
+      if (Array.isArray(parsed)) {
+        improvements = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      /* leave empty; fallback below */
+    }
+  }
+  if (improvements.length === 0) {
+    improvements = [
+      "Refine the brand positioning to name a specific customer and their outcome.",
+      "Tighten the messaging so it would not survive being swapped onto a competitor.",
+      "Invest in a distinctive visual system — the current execution reads as generic.",
+    ];
+  }
+
+  // verdict: accept plain string or stringified object { roast | description | summary }
+  let verdict = typeof r.verdict === "string" ? r.verdict : "";
+  if (verdict.trim().startsWith("{")) {
+    try {
+      const parsed: unknown = JSON.parse(verdict);
+      if (parsed && typeof parsed === "object") {
+        const obj = parsed as Record<string, unknown>;
+        const extracted = obj.roast ?? obj.description ?? obj.summary;
+        if (typeof extracted === "string" && extracted) verdict = extracted;
+      }
+    } catch {
+      /* keep as-is */
+    }
+  }
+  if (!verdict) verdict = "No verdict was returned. Please run the roast again.";
+
+  const pillar = (name: string) => {
+    const p = (r[name] ?? {}) as { score?: unknown; roast?: unknown };
+    const score = typeof p.score === "number" && Number.isFinite(p.score) ? p.score : 5;
+    const roast =
+      typeof p.roast === "string" && p.roast ? p.roast : `No ${name} analysis returned.`;
+    return { score, roast };
+  };
+
+  const overall =
+    typeof r.overall === "number" && Number.isFinite(r.overall) ? r.overall : 5;
+
+  return {
+    strategy: pillar("strategy"),
+    creativity: pillar("creativity"),
+    narrative: pillar("narrative"),
+    digital: pillar("digital"),
+    verdict,
+    improvements,
+    overall,
+  };
+}
+
 /* ── Score bar component ──────────────────────────────── */
 
 /* ── Animated counter hook ───────────────────────────── */
@@ -416,16 +488,13 @@ function BrandRoastInner() {
         const elapsed = Date.now() - apiStart;
         const remaining = Math.max(0, minDisplayMs - elapsed);
 
-        // Validate response structure
-        if (!data?.result?.strategy?.score || !data?.result?.verdict) {
-          throw new Error("Invalid API response structure");
-        }
+        // Normalize response — tolerant of Claude tool-schema drift
+        const roastResult: RoastResult = normalizeRoastResult(data?.result);
 
         // Wait for minimum display time so animation completes
         setTimeout(() => {
           clearInterval(stageInterval);
           setAnalyzing(false);
-          const roastResult: RoastResult = data.result;
           setResult(roastResult);
           const updated = saveToHistory({
             brandName,
@@ -921,7 +990,7 @@ function BrandRoastInner() {
                       Where to Start
                     </h3>
                     <ul className="mt-4 space-y-4">
-                      {result.improvements.map((imp, i) => (
+                      {(Array.isArray(result.improvements) ? result.improvements : []).map((imp, i) => (
                         <li key={i} className="flex items-start gap-3">
                           <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-white">
                             {i + 1}
