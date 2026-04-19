@@ -126,3 +126,48 @@ curl -X POST http://localhost:3000/api/skills/brand-positioning \
 - **Rate limit tuning**: currently 10/hour per IP on public Brand Roast and per-client limits on gated skills. No data yet on whether these are right.
 - **Pricing model**: tiers exist in code (`trial`, `agency`, `enterprise`, `internal`) but the economic meaning of each tier hasn't been set. Session 6 pins this down.
 - **Knowledge sync**: canonical → repo is manual today. Worth a small script to diff and copy when the canonical updates, to avoid drift.
+
+---
+
+## Working model (2026-04-19)
+
+The Mac Mini (`rogelio@100.120.200.21`, Tailscale) is the canonical working environment. The MacBook is a thin client for editing and running Claude Code sessions. The MacBook no longer holds a working clone — it was archived to `~/Archive/arto-studio-ai-local-backup-2026-04-19/`.
+
+### What lives on the Mac Mini
+- Repo: `/Users/rogelio/Projects/arto-studio-ai` — canonical source of truth
+- `.env.local` (synced once from MacBook)
+- `~/.logs/arto-dev.{out,err}.log` — dev server logs
+- `~/Library/LaunchAgents/com.arto.studio.dev.plist` — launchd service keeping `npm run dev` up 24/7, auto-restart on crash
+- `~/.vscode-server/` — installed server for Remote-SSH (installs itself the first time VS Code connects)
+- `~/.claude/projects/-Users-rogelio-Projects-arto-studio-ai/memory/` — MEMORY.md + 3 strategy notes
+
+### Always-on endpoints (via Tailscale from anywhere)
+- Dev server: `http://100.120.200.21:3000`
+- Quick smoke test: `curl http://100.120.200.21:3000/api/skills`
+
+### Starting a new Claude Code session (recommended flow)
+```bash
+ssh arto-mini           # SSH alias in ~/.ssh/config
+cd ~/Projects/arto-studio-ai
+claude
+# First prompt:
+# "Lee docs/ROADMAP.md y dime qué sigue"
+```
+
+### Editing from MacBook via VS Code
+```bash
+code --remote ssh-remote+arto-mini /Users/rogelio/Projects/arto-studio-ai
+```
+Files live on Mac Mini. VS Code runs on MacBook. Zero sync. Save in VS Code → change is immediate on Mac Mini → dev server hot-reloads.
+
+### Managing the always-on dev server
+```bash
+# On Mac Mini:
+launchctl list | grep arto.studio    # is it running?
+launchctl unload ~/Library/LaunchAgents/com.arto.studio.dev.plist   # stop
+launchctl load ~/Library/LaunchAgents/com.arto.studio.dev.plist     # start
+tail -f ~/.logs/arto-dev.out.log                                    # follow logs
+```
+
+### Deploying
+Unchanged: `git push origin main` from anywhere → Vercel redeploys production automatically.
