@@ -99,11 +99,16 @@ export default function BrandPositioningRunner({
     if (input.websiteUrl?.trim()) body.websiteUrl = input.websiteUrl.trim();
 
     try {
+      const controller = new AbortController();
+      const timeoutMs = 90_000;
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch("/api/skills/brand-positioning", {
         method: "POST",
         headers: keyHeadersWithJson(apiKey),
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || `HTTP ${res.status}`);
@@ -112,8 +117,14 @@ export default function BrandPositioningRunner({
         setResult(data as PosResponse);
         onDone();
       }
-    } catch {
-      setError("Network error.");
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === "AbortError";
+      if (aborted) {
+        setError("Request timed out after 90s. Try again — usually resolves on the second attempt.");
+      } else {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(`Network error: ${message}. The call may still be running on the server; check /admin → Skill Traces.`);
+      }
     }
     setLoading(false);
   }
