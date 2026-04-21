@@ -8,7 +8,9 @@ interface Client {
   name: string;
   email: string;
   api_key_prefix: string;
-  tier: "trial" | "agency" | "enterprise" | "internal";
+  tier: "trial" | "starter" | "agency" | "enterprise" | "internal";
+  trial_calls_limit: number | null;
+  trial_calls_used: number;
   allowed_skills: string[];
   rate_limit_per_hour: number;
   active: boolean;
@@ -20,7 +22,7 @@ interface ClientWithSecret extends Client {
   api_key: string;
 }
 
-const TIERS: Client["tier"][] = ["trial", "agency", "enterprise", "internal"];
+const TIERS: Client["tier"][] = ["trial", "starter", "agency", "enterprise", "internal"];
 const KNOWN_SKILLS = ["brand-roast", "brand-positioning"];
 
 export default function ClientsTab({
@@ -184,6 +186,7 @@ export default function ClientsTab({
                 <th className="pb-3 pr-4">Tier</th>
                 <th className="pb-3 pr-4">Allowed skills</th>
                 <th className="pb-3 pr-4 text-right">Rate/h</th>
+                <th className="pb-3 pr-4 text-right">Trial</th>
                 <th className="pb-3 pr-4">Status</th>
                 <th className="pb-3 pr-4">Key prefix</th>
                 <th className="pb-3 pr-4">Created</th>
@@ -304,6 +307,9 @@ function ClientRow({
             min={1}
           />
         </td>
+        <td className="py-3 pr-4 text-right font-mono text-xs text-zinc-400">
+          {client.trial_calls_limit === null ? "∞" : `${client.trial_calls_used}/${client.trial_calls_limit}`}
+        </td>
         <td className="py-3 pr-4">
           <label className="flex items-center gap-1 text-xs">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
@@ -370,6 +376,21 @@ function ClientRow({
       </td>
       <td className="py-3 pr-4 text-right font-mono text-xs text-zinc-600">
         {client.rate_limit_per_hour}
+      </td>
+      <td className="py-3 pr-4 text-right font-mono text-xs">
+        {client.trial_calls_limit === null ? (
+          <span className="text-zinc-400">∞</span>
+        ) : (
+          <span
+            className={
+              client.trial_calls_used >= client.trial_calls_limit
+                ? "text-red-600 font-semibold"
+                : "text-zinc-600"
+            }
+          >
+            {client.trial_calls_used}/{client.trial_calls_limit}
+          </span>
+        )}
       </td>
       <td className="py-3 pr-4">
         {client.active ? (

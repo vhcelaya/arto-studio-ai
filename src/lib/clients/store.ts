@@ -7,14 +7,31 @@ import crypto from "crypto";
  * Brand Roast is public (no client required).
  */
 
+export type ClientTier = "trial" | "starter" | "agency" | "enterprise" | "internal";
+
+export const CLIENT_TIERS: ClientTier[] = [
+  "trial",
+  "starter",
+  "agency",
+  "enterprise",
+  "internal",
+];
+
 export interface Client {
   id: string;
   name: string;
   email: string;
   api_key_prefix: string; // first 8 chars of raw key, for display only
-  tier: "trial" | "agency" | "enterprise" | "internal";
+  tier: ClientTier;
   allowed_skills: string[]; // slugs or ["*"] for all
   rate_limit_per_hour: number;
+  /**
+   * Total lifetime calls allowed on gated skills. NULL = unlimited.
+   * Used for trial clients: typically set to 5 on signup.
+   */
+  trial_calls_limit: number | null;
+  /** Lifetime count of gated-skill calls this client has made. */
+  trial_calls_used: number;
   active: boolean;
   notes: string | null;
   created_at?: string;
@@ -72,6 +89,9 @@ async function ensureSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Session 6 additions — idempotent migrations.
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS trial_calls_limit INTEGER`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS trial_calls_used INTEGER NOT NULL DEFAULT 0`;
     await sql`CREATE INDEX IF NOT EXISTS idx_clients_hash ON clients (api_key_hash)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_clients_active ON clients (active)`;
     schemaInitialized = true;
@@ -82,12 +102,33 @@ async function ensureSchema() {
   }
 }
 
+function rowToClient(row: Record<string, unknown>): Client {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: row.email as string,
+    api_key_prefix: row.api_key_prefix as string,
+    tier: row.tier as ClientTier,
+    allowed_skills: row.allowed_skills as string[],
+    rate_limit_per_hour: row.rate_limit_per_hour as number,
+    trial_calls_limit:
+      row.trial_calls_limit === null || row.trial_calls_limit === undefined
+        ? null
+        : (row.trial_calls_limit as number),
+    trial_calls_used: (row.trial_calls_used as number) ?? 0,
+    active: row.active as boolean,
+    notes: (row.notes as string | null) ?? null,
+    created_at: row.created_at as string | undefined,
+  };
+}
+
 export async function createClient(params: {
   name: string;
   email: string;
-  tier?: Client["tier"];
+  tier?: ClientTier;
   allowed_skills?: string[];
   rate_limit_per_hour?: number;
+  trial_calls_limit?: number | null;
   notes?: string;
 }): Promise<ClientWithSecret | null> {
   const ready = await ensureSchema();
@@ -101,29 +142,22 @@ export async function createClient(params: {
     const [row] = await sql`
       INSERT INTO clients (
         name, email, api_key_hash, api_key_prefix,
-        tier, allowed_skills, rate_limit_per_hour, notes
+        tier, allowed_skills, rate_limit_per_hour, trial_calls_limit, notes
       ) VALUES (
         ${params.name}, ${params.email}, ${hash}, ${prefix},
         ${params.tier ?? "trial"},
         ${JSON.stringify(params.allowed_skills ?? ["*"])},
         ${params.rate_limit_per_hour ?? 100},
+        ${params.trial_calls_limit ?? null},
         ${params.notes ?? null}
       )
       RETURNING id, name, email, api_key_prefix, tier, allowed_skills,
-                rate_limit_per_hour, active, notes, created_at
+                rate_limit_per_hour, trial_calls_limit, trial_calls_used,
+                active, notes, created_at
     `;
 
     return {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      api_key_prefix: row.api_key_prefix,
-      tier: row.tier,
-      allowed_skills: row.allowed_skills,
-      rate_limit_per_hour: row.rate_limit_per_hour,
-      active: row.active,
-      notes: row.notes,
-      created_at: row.created_at,
+      ...rowToClient(row),
       api_key: raw,
     };
   } catch (error) {
@@ -144,26 +178,37 @@ export async function verifyApiKey(rawKey: string): Promise<Client | null> {
   try {
     const [row] = await sql`
       SELECT id, name, email, api_key_prefix, tier, allowed_skills,
-             rate_limit_per_hour, active, notes, created_at
+             rate_limit_per_hour, trial_calls_limit, trial_calls_used,
+             active, notes, created_at
       FROM clients
       WHERE api_key_hash = ${hash} AND active = TRUE
       LIMIT 1
     `;
     if (!row) return null;
-    return {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      api_key_prefix: row.api_key_prefix,
-      tier: row.tier,
-      allowed_skills: row.allowed_skills,
-      rate_limit_per_hour: row.rate_limit_per_hour,
-      active: row.active,
-      notes: row.notes,
-      created_at: row.created_at,
-    };
+    return rowToClient(row);
   } catch (error) {
     console.error("[clients/store] verifyApiKey failed:", error);
+    return null;
+  }
+}
+
+export async function getClientById(id: string): Promise<Client | null> {
+  const ready = await ensureSchema();
+  if (!ready) return null;
+  const sql = getDb()!;
+  try {
+    const [row] = await sql`
+      SELECT id, name, email, api_key_prefix, tier, allowed_skills,
+             rate_limit_per_hour, trial_calls_limit, trial_calls_used,
+             active, notes, created_at
+      FROM clients
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    if (!row) return null;
+    return rowToClient(row);
+  } catch (error) {
+    console.error("[clients/store] getClientById failed:", error);
     return null;
   }
 }
@@ -176,11 +221,12 @@ export async function listClients(): Promise<Client[]> {
   try {
     const rows = await sql`
       SELECT id, name, email, api_key_prefix, tier, allowed_skills,
-             rate_limit_per_hour, active, notes, created_at
+             rate_limit_per_hour, trial_calls_limit, trial_calls_used,
+             active, notes, created_at
       FROM clients
       ORDER BY created_at DESC
     `;
-    return rows as unknown as Client[];
+    return rows.map((r) => rowToClient(r as Record<string, unknown>));
   } catch (error) {
     console.error("[clients/store] listClients failed:", error);
     return [];
@@ -203,7 +249,20 @@ export async function revokeClient(id: string): Promise<boolean> {
 
 export async function updateClient(
   id: string,
-  updates: Partial<Pick<Client, "name" | "email" | "tier" | "allowed_skills" | "rate_limit_per_hour" | "active" | "notes">>
+  updates: Partial<
+    Pick<
+      Client,
+      | "name"
+      | "email"
+      | "tier"
+      | "allowed_skills"
+      | "rate_limit_per_hour"
+      | "trial_calls_limit"
+      | "trial_calls_used"
+      | "active"
+      | "notes"
+    >
+  >
 ): Promise<boolean> {
   const ready = await ensureSchema();
   if (!ready) return false;
@@ -218,11 +277,38 @@ export async function updateClient(
       await sql`UPDATE clients SET allowed_skills = ${JSON.stringify(updates.allowed_skills)} WHERE id = ${id}`;
     if (updates.rate_limit_per_hour !== undefined)
       await sql`UPDATE clients SET rate_limit_per_hour = ${updates.rate_limit_per_hour} WHERE id = ${id}`;
+    if (updates.trial_calls_limit !== undefined)
+      await sql`UPDATE clients SET trial_calls_limit = ${updates.trial_calls_limit} WHERE id = ${id}`;
+    if (updates.trial_calls_used !== undefined)
+      await sql`UPDATE clients SET trial_calls_used = ${updates.trial_calls_used} WHERE id = ${id}`;
     if (updates.active !== undefined) await sql`UPDATE clients SET active = ${updates.active} WHERE id = ${id}`;
     if (updates.notes !== undefined) await sql`UPDATE clients SET notes = ${updates.notes} WHERE id = ${id}`;
     return true;
   } catch (error) {
     console.error("[clients/store] updateClient failed:", error);
     return false;
+  }
+}
+
+/**
+ * Atomically increment trial_calls_used for a client. Returns the new value,
+ * or null on failure. Used by the skills engine after a successful gated call.
+ */
+export async function incrementTrialCallsUsed(id: string): Promise<number | null> {
+  const ready = await ensureSchema();
+  if (!ready) return null;
+
+  const sql = getDb()!;
+  try {
+    const [row] = await sql`
+      UPDATE clients
+      SET trial_calls_used = trial_calls_used + 1
+      WHERE id = ${id}
+      RETURNING trial_calls_used
+    `;
+    return row ? (row.trial_calls_used as number) : null;
+  } catch (error) {
+    console.error("[clients/store] incrementTrialCallsUsed failed:", error);
+    return null;
   }
 }

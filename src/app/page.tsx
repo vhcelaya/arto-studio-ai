@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import WaitlistForm from "./waitlist-form";
+import PricingCards from "./PricingCards";
 
 const pillars = [
   {
@@ -35,49 +36,6 @@ const comparisons = [
   { them: "Freelancer", us: "$1,500–3,000/mo", arto: "From $99/mo, always available" },
   { them: "Agency", us: "$5,000–15,000/mo", arto: "Same quality, fraction of the cost" },
   { them: "Canva", us: "DIY templates", arto: "Strategic thinking + execution" },
-];
-
-const pricing = [
-  {
-    name: "Starter",
-    price: "$99",
-    period: "/mo",
-    description: "Strategy + Narrative for one brand",
-    features: [
-      "Brand positioning",
-      "Monthly content calendar",
-      "Social media copy",
-      "Email support",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$299",
-    period: "/mo",
-    description: "All 5 pillars, weekly reports, autonomous sessions",
-    features: [
-      "Everything in Starter",
-      "Creative direction",
-      "SEO & digital audits",
-      "Weekly strategy reports",
-      "Autonomous content sessions",
-      "Priority support",
-    ],
-    popular: true,
-  },
-  {
-    name: "Agency",
-    price: "$799",
-    period: "/mo",
-    description: "Multi-brand, white-label, API access",
-    features: [
-      "Everything in Pro",
-      "Up to 5 brands",
-      "White-label deliverables",
-      "API access",
-      "Dedicated account manager",
-    ],
-  },
 ];
 
 export default function Home() {
@@ -342,65 +300,7 @@ export default function Home() {
               An agency charges $5,000–15,000/month. We charge a fraction.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {pricing.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl border p-8 ${
-                  plan.popular
-                    ? "border-foreground bg-white shadow-lg"
-                    : "border-border bg-white"
-                }`}
-              >
-                {plan.popular && (
-                  <span className="mb-4 inline-block rounded-full bg-foreground px-3 py-1 text-xs font-medium text-white">
-                    Most popular
-                  </span>
-                )}
-                <h3 className="text-xl font-bold">{plan.name}</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold tracking-tight">
-                    {plan.price}
-                  </span>
-                  <span className="text-muted">{plan.period}</span>
-                </div>
-                <p className="mt-2 text-sm text-muted">{plan.description}</p>
-                <a
-                  href="#waitlist"
-                  className={`mt-6 block w-full rounded-full py-3 text-center text-sm font-medium transition-colors ${
-                    plan.popular
-                      ? "bg-foreground text-white hover:bg-zinc-800"
-                      : "border border-border hover:bg-zinc-50"
-                  }`}
-                >
-                  Start free trial
-                </a>
-                <ul className="mt-6 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2 text-sm text-muted"
-                    >
-                      <svg
-                        className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2}
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4.5 12.75l6 6 9-13.5"
-                        />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+            <PricingCards />
         </div>
       </section>
 

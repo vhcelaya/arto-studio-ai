@@ -8,7 +8,13 @@ import { verifyApiKey, type Client } from "./store";
 
 export type AuthResult =
   | { ok: true; client: Client }
-  | { ok: false; status: 401 | 403 | 429; error: string };
+  | {
+      ok: false;
+      status: 401 | 403 | 429;
+      error: string;
+      /** Present on 429 when the limit is a lifetime trial exhaustion, not an hourly rate limit. */
+      upgrade_url?: string;
+    };
 
 /* In-memory rate limiter, per client. Resets on serverless instance restart.
  * TODO: move to Redis/DB when we need accurate global limits. */
@@ -64,7 +70,20 @@ export async function requireClientAuth(
     };
   }
 
-  // Rate limit per client
+  // Lifetime trial-call cap check (takes precedence over hourly rate limit).
+  if (
+    client.trial_calls_limit !== null &&
+    client.trial_calls_used >= client.trial_calls_limit
+  ) {
+    return {
+      ok: false,
+      status: 429,
+      error: `Trial exhausted — you've used all ${client.trial_calls_limit} free calls. Upgrade to continue.`,
+      upgrade_url: `/upgrade?client_id=${client.id}`,
+    };
+  }
+
+  // Rate limit per client (hourly).
   if (isRateLimited(client.id, client.rate_limit_per_hour)) {
     return {
       ok: false,

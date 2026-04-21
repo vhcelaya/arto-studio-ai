@@ -39,6 +39,7 @@ interface CreateBody {
   tier?: unknown;
   allowed_skills?: unknown;
   rate_limit_per_hour?: unknown;
+  trial_calls_limit?: unknown;
   notes?: unknown;
 }
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const tier =
     typeof body.tier === "string" &&
-    ["trial", "agency", "enterprise", "internal"].includes(body.tier)
+    ["trial", "starter", "agency", "enterprise", "internal"].includes(body.tier)
       ? (body.tier as Client["tier"])
       : "trial";
 
@@ -78,12 +79,20 @@ export async function POST(request: NextRequest) {
 
   const notes = typeof body.notes === "string" ? body.notes : undefined;
 
+  const trial_calls_limit =
+    typeof body.trial_calls_limit === "number" && body.trial_calls_limit > 0
+      ? Math.floor(body.trial_calls_limit)
+      : body.trial_calls_limit === null
+        ? null
+        : undefined;
+
   const created = await createClient({
     name,
     email,
     tier,
     allowed_skills,
     rate_limit_per_hour,
+    ...(trial_calls_limit !== undefined && { trial_calls_limit }),
     notes,
   });
 
@@ -126,7 +135,7 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.email === "string") updates.email = body.email;
   if (
     typeof body.tier === "string" &&
-    ["trial", "agency", "enterprise", "internal"].includes(body.tier)
+    ["trial", "starter", "agency", "enterprise", "internal"].includes(body.tier)
   ) {
     updates.tier = body.tier as Client["tier"];
   }
@@ -137,6 +146,14 @@ export async function PATCH(request: NextRequest) {
   }
   if (typeof body.rate_limit_per_hour === "number") {
     updates.rate_limit_per_hour = Math.floor(body.rate_limit_per_hour);
+  }
+  if (typeof body.trial_calls_limit === "number") {
+    updates.trial_calls_limit = Math.floor(body.trial_calls_limit);
+  } else if (body.trial_calls_limit === null) {
+    updates.trial_calls_limit = null;
+  }
+  if (typeof body.trial_calls_used === "number") {
+    updates.trial_calls_used = Math.max(0, Math.floor(body.trial_calls_used));
   }
   if (typeof body.active === "boolean") updates.active = body.active;
   if (typeof body.notes === "string") updates.notes = body.notes;

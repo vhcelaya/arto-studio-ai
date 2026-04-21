@@ -73,10 +73,9 @@ export async function POST(
   } else {
     const auth = await requireClientAuth(request, slug);
     if (!auth.ok) {
-      return NextResponse.json(
-        { error: auth.error },
-        { status: auth.status, headers: corsHeaders }
-      );
+      const body: { error: string; upgrade_url?: string } = { error: auth.error };
+      if (auth.upgrade_url) body.upgrade_url = auth.upgrade_url;
+      return NextResponse.json(body, { status: auth.status, headers: corsHeaders });
     }
     clientId = auth.client.id;
   }

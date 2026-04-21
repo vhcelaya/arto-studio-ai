@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { loadKnowledge } from "@/lib/knowledge";
 import { saveSkillTrace } from "@/lib/trace-store";
+import { incrementTrialCallsUsed } from "@/lib/clients/store";
 import { getSkill } from "./registry";
 import type { SkillContext, SkillResponse } from "./types";
 
@@ -135,6 +136,11 @@ export async function runSkill<TIn, TOut>(
       /* silently swallow — console trace remains */
     });
 
+    // Fire-and-forget trial-call increment (for clients with trial_calls_limit != null)
+    if (ctx.clientId) {
+      void incrementTrialCallsUsed(ctx.clientId).catch(() => {});
+    }
+
     // Structured log for Vercel logs
     console.log(
       JSON.stringify({
@@ -192,6 +198,10 @@ function finishWithFallback<TIn, TOut>(
     latency_ms: latencyMs,
     email: null,
   }).catch(() => {});
+
+  if (ctx.clientId) {
+    void incrementTrialCallsUsed(ctx.clientId).catch(() => {});
+  }
 
   console.log(
     JSON.stringify({
