@@ -1,0 +1,20 @@
+{
+  "name": "arto-studio-ai",
+  "version": "0.1.0",
+  "description": "ARTO Studio AI methodology packaged as Claude Code skills. Brings ARTO Group's 15+ year brand strategy methodology into any Claude session — Brand Roast (free, public) and Brand Positioning (gated, $99/mo) skills.",
+  "author": {
+    "name": "ARTO Group",
+    "email": "hello@artogroup.com",
+    "url": "https://arto-studio-ai.vercel.app"
+  },
+  "homepage": "https://arto-studio-ai.vercel.app",
+  "repository": "https://github.com/vhcelaya/arto-studio-ai",
+  "keywords": [
+    "branding",
+    "brand-strategy",
+    "positioning",
+    "brand-audit",
+    "marketing"
+  ],
+  "license": "MIT"
+}

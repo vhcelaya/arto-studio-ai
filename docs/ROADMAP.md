@@ -58,14 +58,14 @@ All slices have frontmatter with `last_reviewed` + `owner`. Canonical source of 
 | 2 | First gated skill (`brand-positioning`) | ✅ done | 3 files, 581 lines, gating tested end-to-end (401/401/403/200), trace confirmed in DB. Commit `914c15d`. |
 | — | Bug fix: Brand Roast ErrorBoundary | ✅ done | Prompt + schema hardened, maxTokens 4000→4500, `normalizeRoastResult` helper, defense-in-depth render. Commit `e3c46ca`. |
 | 3 | **Admin UI for clients + traces** | ⏳ next | Extend `/admin` with tabs to create/revoke clients and view `skill_traces` without curl. Zero engine changes. |
-| 4 | Packaging as Claude Agent Skills | ⏳ | Create `.claude/skills/arto-*` packages following Anthropic spec for viral distribution. |
+| 4 | Packaging as Claude Agent Skills | ✅ done | Two Agent Skills (`arto-brand-roast`, `arto-brand-positioning`) shipped in `.claude/skills/`, with `docs/SKILLS.md` install guide and `.claude-plugin/plugin.json` manifest. Methodology stays server-side (paid API); skills are API wrappers. |
 | 5 | Internal ARTO interface | ⏳ | Dashboard at `/studio` or `/internal` for the team consuming `/api/skills/{slug}` with an internal key. |
 | 6 | Trial flow + Stripe | ✅ done | Self-service trial signup, Resend welcome email, 5-call trial limit, Stripe checkout, webhook upgrade to `starter` tier. Commits `651e81b`, `33cbc30`, plus raw-fetch fix. |
 | 7 | Brand Roast polish | 🟡 partial | Critical crash fixed. Remaining: Story OG, iOS native share, Spanish translation, industry variants, more download options. |
 
 ### Recommended order
 
-~~3 (admin UI)~~ ✅ → ~~6 (Stripe)~~ ✅ → 4 (packaging) → 5 (internal UI) → 7 (roast polish finalization).
+~~3 (admin UI)~~ ✅ → ~~6 (Stripe)~~ ✅ → ~~4 (packaging)~~ ✅ → 5 (internal UI) → 7 (roast polish finalization).
 
 Rationale: sessions 3 and 6 are commercial (reduce operational friction, enable monetization). Session 4 is viral distribution. Session 5 is internal productivity. Session 7 is marketing polish — important but not blocking anything.
 
@@ -195,3 +195,34 @@ Pending for a future session:
   webhook (currently logged but ignored).
 - Flip Stripe to live mode when we want real payments — just swap the
   keys in Vercel prod.
+
+
+---
+
+## Session 4 notes (2026-04-21)
+
+Shipped two Claude Agent Skills wrapping the ARTO API:
+- `arto-brand-roast` (public, no key) and `arto-brand-positioning` (gated,
+  requires `ARTO_API_KEY`).
+- Both are pure API wrappers — no ARTO methodology bundled locally. This
+  is deliberate: Session 6's commercial model depends on the methodology
+  living behind the paid API.
+
+Install paths documented in `docs/SKILLS.md`:
+1. **Project-scoped** — already loaded when working inside this repo.
+2. **User-scoped** — `cp -r .claude/skills/arto-* ~/.claude/skills/`.
+3. **Plugin marketplace** — future, once Anthropic opens one for third
+   parties. `.claude-plugin/plugin.json` is ready.
+
+Verified the full activation chain end-to-end on the MacBook: copied
+skills to `~/.claude/skills/`, ran `claude -p` from `/tmp`, Claude picked
+the right skill from description alone, refused when `ARTO_API_KEY` was
+missing, and formatted the API output verbatim when the key was present.
+
+Pending for future sessions:
+- `arto-methodology-lite` skill (bundles only `quality/rubric.md`) as the
+  viral seed — teaches the ARTO quality frame offline without giving
+  away the Positioning methodology.
+- Telemetry: tag `skill_traces.source` with `"agent-skill"` when the
+  call came via a Claude Code skill (User-Agent sniff).
+- Publish to a marketplace once Anthropic ships one.
