@@ -59,13 +59,13 @@ All slices have frontmatter with `last_reviewed` + `owner`. Canonical source of 
 | — | Bug fix: Brand Roast ErrorBoundary | ✅ done | Prompt + schema hardened, maxTokens 4000→4500, `normalizeRoastResult` helper, defense-in-depth render. Commit `e3c46ca`. |
 | 3 | **Admin UI for clients + traces** | ⏳ next | Extend `/admin` with tabs to create/revoke clients and view `skill_traces` without curl. Zero engine changes. |
 | 4 | Packaging as Claude Agent Skills | ✅ done | Two Agent Skills (`arto-brand-roast`, `arto-brand-positioning`) shipped in `.claude/skills/`, with `docs/SKILLS.md` install guide and `.claude-plugin/plugin.json` manifest. Methodology stays server-side (paid API); skills are API wrappers. |
-| 5 | Internal ARTO interface | ⏳ | Dashboard at `/studio` or `/internal` for the team consuming `/api/skills/{slug}` with an internal key. |
+| 5 | Internal ARTO interface | ✅ done | `/studio` dashboard: login with API key, dynamic tabs per allowed skill, hardcoded form + structured output per skill, sidebar with recent calls (via new `/api/studio/my-traces` endpoint). Commit `542b704`. |
 | 6 | Trial flow + Stripe | ✅ done | Self-service trial signup, Resend welcome email, 5-call trial limit, Stripe checkout, webhook upgrade to `starter` tier. Commits `651e81b`, `33cbc30`, plus raw-fetch fix. |
 | 7 | Brand Roast polish | 🟡 partial | Critical crash fixed. Remaining: Story OG, iOS native share, Spanish translation, industry variants, more download options. |
 
 ### Recommended order
 
-~~3 (admin UI)~~ ✅ → ~~6 (Stripe)~~ ✅ → ~~4 (packaging)~~ ✅ → 5 (internal UI) → 7 (roast polish finalization).
+~~3 (admin UI)~~ ✅ → ~~6 (Stripe)~~ ✅ → ~~4 (packaging)~~ ✅ → ~~5 (internal UI)~~ ✅ → 7 (roast polish finalization).
 
 Rationale: sessions 3 and 6 are commercial (reduce operational friction, enable monetization). Session 4 is viral distribution. Session 5 is internal productivity. Session 7 is marketing polish — important but not blocking anything.
 
@@ -226,3 +226,32 @@ Pending for future sessions:
 - Telemetry: tag `skill_traces.source` with `"agent-skill"` when the
   call came via a Claude Code skill (User-Agent sniff).
 - Publish to a marketplace once Anthropic ships one.
+
+
+---
+
+## Session 5 notes (2026-04-21)
+
+Shipped `/studio` — internal dashboard for the team to run skills without
+curl. Key design choices:
+
+- **Auth = client API key** (same one a paying customer would use).
+  Team members use a `tier: internal` client created in `/admin → Clients`
+  with `allowed_skills: ["*"]` and a high `rate_limit_per_hour`. No new
+  auth surface, no SSO complexity.
+- **Tabs are dynamic** — fetched from `/api/skills` with the user's key,
+  so each user sees only the skills they have access to. A paying Starter
+  customer using `/studio` only sees `brand-positioning`; an internal
+  key sees everything.
+- **Forms + renderers are hardcoded per skill** (not schema-driven).
+  When a new skill ships without a custom UI, `UnknownSkillRunner.tsx`
+  handles it with a raw JSON-in/JSON-out form.
+- **Recent-calls sidebar** uses `/api/studio/my-traces` (new route) which
+  auths with the client key and returns only that client's traces plus
+  current quota state (trial_calls_used, tier, etc.).
+
+Pending for future:
+- More skill-specific renderers as new skills ship.
+- Export-to-markdown of results (ARTO team asks for this when they
+  want to paste a positioning into Notion or Slack).
+- Diff view between two positioning runs on the same brand.
