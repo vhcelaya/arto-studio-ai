@@ -8,11 +8,9 @@ import Stripe from "stripe";
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
-  return new Stripe(key, {
-    // Pin API version — matches the types bundled with the SDK we installed.
-    // Bump when Stripe types bump.
-    apiVersion: "2026-03-25.dahlia",
-  });
+  // Use the SDK default apiVersion to avoid pinning mismatches
+  // between the SDK, account, and types.
+  return new Stripe(key);
 }
 
 export const STRIPE_PRICE_ID_STARTER = process.env.STRIPE_PRICE_ID_STARTER || "";
