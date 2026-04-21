@@ -60,12 +60,12 @@ All slices have frontmatter with `last_reviewed` + `owner`. Canonical source of 
 | 3 | **Admin UI for clients + traces** | ⏳ next | Extend `/admin` with tabs to create/revoke clients and view `skill_traces` without curl. Zero engine changes. |
 | 4 | Packaging as Claude Agent Skills | ⏳ | Create `.claude/skills/arto-*` packages following Anthropic spec for viral distribution. |
 | 5 | Internal ARTO interface | ⏳ | Dashboard at `/studio` or `/internal` for the team consuming `/api/skills/{slug}` with an internal key. |
-| 6 | Trial flow + Stripe | ⏳ | Landing with pricing, signup creates `tier: trial`, Stripe checkout, webhook updates `allowed_skills`. |
+| 6 | Trial flow + Stripe | ✅ done | Self-service trial signup, Resend welcome email, 5-call trial limit, Stripe checkout, webhook upgrade to `starter` tier. Commits `651e81b`, `33cbc30`, plus raw-fetch fix. |
 | 7 | Brand Roast polish | 🟡 partial | Critical crash fixed. Remaining: Story OG, iOS native share, Spanish translation, industry variants, more download options. |
 
 ### Recommended order
 
-3 (admin UI) → 6 (Stripe) → 4 (packaging) → 5 (internal UI) → 7 (roast polish finalization).
+~~3 (admin UI)~~ ✅ → ~~6 (Stripe)~~ ✅ → 4 (packaging) → 5 (internal UI) → 7 (roast polish finalization).
 
 Rationale: sessions 3 and 6 are commercial (reduce operational friction, enable monetization). Session 4 is viral distribution. Session 5 is internal productivity. Session 7 is marketing polish — important but not blocking anything.
 
@@ -171,3 +171,27 @@ tail -f ~/.logs/arto-dev.out.log                                    # follow log
 
 ### Deploying
 Unchanged: `git push origin main` from anywhere → Vercel redeploys production automatically.
+
+
+---
+
+## Session 6 notes (2026-04-21)
+
+Shipped: self-service signup with trial-call quota, Resend transactional
+email, Stripe test-mode checkout, webhook-driven upgrade to `starter`
+tier. Two gotchas worth remembering:
+
+- **Stripe SDK v22 is unreliable on Vercel/Node 24.** The Checkout
+  session endpoint uses raw `fetch` to the Stripe REST API. The webhook
+  handler still uses the SDK (only for `constructEvent` signature
+  verification — no outbound).
+- **`vercel env add` eats piped newlines.** Use `printf %s "value" |
+  vercel env add VAR production` to avoid saving `value\n`.
+
+Pending for a future session:
+- Verify `artogroup.com` at resend.com/domains so email can ship to
+  addresses other than the verified account owner.
+- Handle `customer.subscription.deleted` and `.updated` events in the
+  webhook (currently logged but ignored).
+- Flip Stripe to live mode when we want real payments — just swap the
+  keys in Vercel prod.

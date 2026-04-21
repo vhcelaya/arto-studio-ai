@@ -12,6 +12,7 @@ config({
   override: true,
 });
 
+export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /* ── POST /api/stripe/webhook ─ handle Stripe events ──
