@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { config } from "dotenv";
+import path from "path";
 import { getTraces, getTraceStats } from "@/lib/trace-store";
 import { isAdminAuthorized } from "@/lib/auth";
+
+// Load .env.local explicitly (workaround for Next.js 16 Turbopack env loading)
+config({
+  path: path.join(/* turbopackIgnore: true */ process.cwd(), ".env.local"),
+  override: true,
+});
+
+export const maxDuration = 30;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
