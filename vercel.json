@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/library",
+      "destination": "https://asai-prompt-library.vercel.app/library"
+    },
+    {
+      "source": "/library/:path*",
+      "destination": "https://asai-prompt-library.vercel.app/library/:path*"
+    }
+  ]
+}
