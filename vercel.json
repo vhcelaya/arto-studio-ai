@@ -1,12 +1,14 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/library",
-      "destination": "https://asai-prompt-library.vercel.app/library"
+      "destination": "https://library.artostudio.ai/",
+      "permanent": true
     },
     {
       "source": "/library/:path*",
-      "destination": "https://asai-prompt-library.vercel.app/library/:path*"
+      "destination": "https://library.artostudio.ai/:path*",
+      "permanent": true
     }
   ]
 }
