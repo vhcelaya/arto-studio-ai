@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "dotenv";
 import path from "path";
+import postgres from "postgres";
 
 // Load .env.local explicitly (workaround for Next.js 16 Turbopack env loading)
 config({
@@ -13,6 +14,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
+let cached: ReturnType<typeof postgres> | null = null;
+function getDb() {
+  if (cached) return cached;
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
+  cached = postgres(url, { ssl: "require", max: 1, prepare: false });
+  return cached;
+}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
@@ -44,7 +54,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Log for Vercel logs (always works)
   console.log(
     JSON.stringify({
       event: "roast_email_capture",
@@ -55,17 +64,19 @@ export async function POST(request: NextRequest) {
   );
 
   // Update the most recent trace for this brand with the email (if DB available)
-  if (process.env.DATABASE_URL) {
+  const sql = getDb();
+  if (sql) {
     try {
-      const { neon } = await import("@neondatabase/serverless");
-      const sql = neon(process.env.DATABASE_URL);
       await sql`
         UPDATE roast_traces
         SET email = ${email}
-        WHERE brand_name = ${brandName}
-          AND email IS NULL
-        ORDER BY created_at DESC
-        LIMIT 1
+        WHERE id = (
+          SELECT id FROM roast_traces
+          WHERE brand_name = ${brandName}
+            AND email IS NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
       `;
     } catch (error) {
       console.error("[/api/roast/email] DB update failed:", error);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "dotenv";
 import path from "path";
+import postgres from "postgres";
 
 config({
   path: path.join(/* turbopackIgnore: true */ process.cwd(), ".env.local"),
@@ -13,27 +14,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
+let cached: ReturnType<typeof postgres> | null = null;
+function getDb() {
+  if (cached) return cached;
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
+  cached = postgres(url, { ssl: "require", max: 1, prepare: false });
+  return cached;
 }
 
-async function ensureWaitlistTable() {
-  if (!process.env.DATABASE_URL) return false;
-  try {
-    const { neon } = await import("@neondatabase/serverless");
-    const sql = neon(process.env.DATABASE_URL);
-    await sql`
-      CREATE TABLE IF NOT EXISTS waitlist (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        source TEXT NOT NULL DEFAULT 'landing',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    return true;
-  } catch {
-    return false;
-  }
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 export async function POST(request: NextRequest) {
@@ -57,7 +48,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Always log
   console.log(
     JSON.stringify({
       event: "waitlist_signup",
@@ -67,19 +57,14 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  // Store in DB if available
-  if (process.env.DATABASE_URL) {
+  const sql = getDb();
+  if (sql) {
     try {
-      const ready = await ensureWaitlistTable();
-      if (ready) {
-        const { neon } = await import("@neondatabase/serverless");
-        const sql = neon(process.env.DATABASE_URL!);
-        await sql`
-          INSERT INTO waitlist (email, source)
-          VALUES (${email}, ${source})
-          ON CONFLICT (email) DO NOTHING
-        `;
-      }
+      await sql`
+        INSERT INTO waitlist (email, source)
+        VALUES (${email}, ${source})
+        ON CONFLICT (email) DO NOTHING
+      `;
     } catch (error) {
       console.error("[/api/waitlist] DB error:", error);
     }
@@ -89,7 +74,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // Admin-only: check auth
   const { isAdminAuthorized } = await import("@/lib/auth");
   if (!isAdminAuthorized(request)) {
     return NextResponse.json(
@@ -98,7 +82,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!process.env.DATABASE_URL) {
+  const sql = getDb();
+  if (!sql) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503, headers: corsHeaders }
@@ -106,8 +91,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { neon } = await import("@neondatabase/serverless");
-    const sql = neon(process.env.DATABASE_URL);
     const rows = await sql`
       SELECT id, email, source, created_at
       FROM waitlist
