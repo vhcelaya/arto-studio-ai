@@ -1,10 +1,13 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import crypto from "crypto";
 
 /**
  * Client management + API key persistence for ARTO Studio AI.
  * Clients hold the API keys that unlock gated skills.
  * Brand Roast is public (no client required).
+ *
+ * Backed by Supabase Postgres (same project as asai-prompt-library + asai-engine).
+ * Schema lives in asai-engine/migrations/002_arto_consolidation.sql.
  */
 
 export type ClientTier = "trial" | "starter" | "agency" | "enterprise" | "internal";
@@ -21,16 +24,11 @@ export interface Client {
   id: string;
   name: string;
   email: string;
-  api_key_prefix: string; // first 8 chars of raw key, for display only
+  api_key_prefix: string;
   tier: ClientTier;
-  allowed_skills: string[]; // slugs or ["*"] for all
+  allowed_skills: string[];
   rate_limit_per_hour: number;
-  /**
-   * Total lifetime calls allowed on gated skills. NULL = unlimited.
-   * Used for trial clients: typically set to 5 on signup.
-   */
   trial_calls_limit: number | null;
-  /** Lifetime count of gated-skill calls this client has made. */
   trial_calls_used: number;
   active: boolean;
   notes: string | null;
@@ -38,13 +36,17 @@ export interface Client {
 }
 
 export interface ClientWithSecret extends Client {
-  api_key: string; // raw — only returned once on creation
+  api_key: string;
 }
 
+let cached: ReturnType<typeof postgres> | null = null;
+
 function getDb() {
+  if (cached) return cached;
   const url = process.env.DATABASE_URL;
   if (!url) return null;
-  return neon(url);
+  cached = postgres(url, { ssl: "require", max: 5, prepare: false });
+  return cached;
 }
 
 function getSalt() {
@@ -61,45 +63,8 @@ function hashKey(rawKey: string): string {
 function generateApiKey(): { raw: string; prefix: string } {
   const bytes = crypto.randomBytes(24).toString("base64url");
   const raw = `arto_live_${bytes}`;
-  const prefix = raw.slice(0, 14); // "arto_live_XXXX"
+  const prefix = raw.slice(0, 14);
   return { raw, prefix };
-}
-
-let schemaInitialized = false;
-
-async function ensureSchema() {
-  if (schemaInitialized) return true;
-
-  const sql = getDb();
-  if (!sql) return false;
-
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS clients (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        api_key_hash TEXT NOT NULL UNIQUE,
-        api_key_prefix TEXT NOT NULL,
-        tier TEXT NOT NULL DEFAULT 'trial',
-        allowed_skills JSONB NOT NULL DEFAULT '["*"]',
-        rate_limit_per_hour INTEGER NOT NULL DEFAULT 100,
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        notes TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    // Session 6 additions — idempotent migrations.
-    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS trial_calls_limit INTEGER`;
-    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS trial_calls_used INTEGER NOT NULL DEFAULT 0`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_clients_hash ON clients (api_key_hash)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_clients_active ON clients (active)`;
-    schemaInitialized = true;
-    return true;
-  } catch (error) {
-    console.error("[clients/store] Failed to init schema:", error);
-    return false;
-  }
 }
 
 function rowToClient(row: Record<string, unknown>): Client {
@@ -118,7 +83,7 @@ function rowToClient(row: Record<string, unknown>): Client {
     trial_calls_used: (row.trial_calls_used as number) ?? 0,
     active: row.active as boolean,
     notes: (row.notes as string | null) ?? null,
-    created_at: row.created_at as string | undefined,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string | undefined),
   };
 }
 
@@ -131,10 +96,9 @@ export async function createClient(params: {
   trial_calls_limit?: number | null;
   notes?: string;
 }): Promise<ClientWithSecret | null> {
-  const ready = await ensureSchema();
-  if (!ready) return null;
+  const sql = getDb();
+  if (!sql) return null;
 
-  const sql = getDb()!;
   const { raw, prefix } = generateApiKey();
   const hash = hashKey(raw);
 
@@ -146,7 +110,7 @@ export async function createClient(params: {
       ) VALUES (
         ${params.name}, ${params.email}, ${hash}, ${prefix},
         ${params.tier ?? "trial"},
-        ${JSON.stringify(params.allowed_skills ?? ["*"])},
+        ${sql.json((params.allowed_skills ?? ["*"]) as never)},
         ${params.rate_limit_per_hour ?? 100},
         ${params.trial_calls_limit ?? null},
         ${params.notes ?? null}
@@ -168,13 +132,9 @@ export async function createClient(params: {
 
 export async function verifyApiKey(rawKey: string): Promise<Client | null> {
   if (!rawKey || !rawKey.startsWith("arto_live_")) return null;
-
-  const ready = await ensureSchema();
-  if (!ready) return null;
-
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return null;
   const hash = hashKey(rawKey);
-
   try {
     const [row] = await sql`
       SELECT id, name, email, api_key_prefix, tier, allowed_skills,
@@ -193,9 +153,8 @@ export async function verifyApiKey(rawKey: string): Promise<Client | null> {
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-  const ready = await ensureSchema();
-  if (!ready) return null;
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return null;
   try {
     const [row] = await sql`
       SELECT id, name, email, api_key_prefix, tier, allowed_skills,
@@ -214,10 +173,8 @@ export async function getClientById(id: string): Promise<Client | null> {
 }
 
 export async function listClients(): Promise<Client[]> {
-  const ready = await ensureSchema();
-  if (!ready) return [];
-
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return [];
   try {
     const rows = await sql`
       SELECT id, name, email, api_key_prefix, tier, allowed_skills,
@@ -234,10 +191,8 @@ export async function listClients(): Promise<Client[]> {
 }
 
 export async function revokeClient(id: string): Promise<boolean> {
-  const ready = await ensureSchema();
-  if (!ready) return false;
-
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return false;
   try {
     await sql`UPDATE clients SET active = FALSE WHERE id = ${id}`;
     return true;
@@ -264,17 +219,14 @@ export async function updateClient(
     >
   >
 ): Promise<boolean> {
-  const ready = await ensureSchema();
-  if (!ready) return false;
-
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return false;
   try {
-    // Neon serverless doesn't support dynamic SET clauses nicely; do per-field
     if (updates.name !== undefined) await sql`UPDATE clients SET name = ${updates.name} WHERE id = ${id}`;
     if (updates.email !== undefined) await sql`UPDATE clients SET email = ${updates.email} WHERE id = ${id}`;
     if (updates.tier !== undefined) await sql`UPDATE clients SET tier = ${updates.tier} WHERE id = ${id}`;
     if (updates.allowed_skills !== undefined)
-      await sql`UPDATE clients SET allowed_skills = ${JSON.stringify(updates.allowed_skills)} WHERE id = ${id}`;
+      await sql`UPDATE clients SET allowed_skills = ${sql.json(updates.allowed_skills as never)} WHERE id = ${id}`;
     if (updates.rate_limit_per_hour !== undefined)
       await sql`UPDATE clients SET rate_limit_per_hour = ${updates.rate_limit_per_hour} WHERE id = ${id}`;
     if (updates.trial_calls_limit !== undefined)
@@ -295,10 +247,8 @@ export async function updateClient(
  * or null on failure. Used by the skills engine after a successful gated call.
  */
 export async function incrementTrialCallsUsed(id: string): Promise<number | null> {
-  const ready = await ensureSchema();
-  if (!ready) return null;
-
-  const sql = getDb()!;
+  const sql = getDb();
+  if (!sql) return null;
   try {
     const [row] = await sql`
       UPDATE clients
