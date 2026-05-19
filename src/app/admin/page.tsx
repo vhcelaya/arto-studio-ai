@@ -100,6 +100,12 @@ export default function AdminDashboard() {
             <span className="text-sm font-medium tracking-wide text-zinc-500">ADMIN</span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link
+              href="/admin/engine"
+              className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              Engine →
+            </Link>
             <button
               onClick={() => setRefreshKey((k) => k + 1)}
               className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
