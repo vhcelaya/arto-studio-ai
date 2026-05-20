@@ -127,9 +127,24 @@ export default function RunsPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Runs</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Every engine module execution — scheduled, manual, dry-run. Audited with cost + tokens.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> auditoría de cada ejecución
+          de cualquier módulo del engine (social, outreach, content, intelligence,
+          scraper). Cada run tiene cost en USD, tokens consumidos, duración, status y un
+          summary JSON con el detalle.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> click un module card
+          para filtrar por módulo. Click una fila para expandir y ver el JSON.
+          &ldquo;Last 24h&rdquo; es tu indicador de actividad — si está en 0, el engine
+          no está corriendo.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> Failed &gt; 0 → ir a
+          Signals para ver detalles. Cost 24h subiendo agresivo → revisar caps en Config.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

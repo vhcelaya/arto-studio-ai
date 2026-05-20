@@ -120,9 +120,24 @@ export default function SocialPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Social</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Module 1 Social Publisher output. Drafts, scheduled posts, and published history.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> posts que genera Module 1
+          (Social Publisher) — drafts, scheduled, published, failed. Corre Mon + Thu
+          16:00 UTC, 3 posts por plataforma (Twitter / LinkedIn / Threads), basado en
+          los prompts top del library.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> click platform card
+          para filtrar. Click una fila para expandir y ver el post completo, buffer
+          post ID, y prompt source.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> &ldquo;Failed&rdquo;
+          subiendo = problema con Buffer o con QC (banned words / similarity).
+          &ldquo;Drafts&rdquo; acumulando sin publicar = falta aprobación manual.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

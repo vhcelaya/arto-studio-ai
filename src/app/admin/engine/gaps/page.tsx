@@ -104,10 +104,24 @@ export default function GapsPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Content gaps</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Query patterns returning poor results — fuel for the prompt queue + content
-        factory.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> patrones de búsqueda en
+          library.artostudio.ai que regresan resultados pobres. Cada query con
+          similarity baja se contabiliza aquí — fuel para el prompt queue + content
+          factory.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> default filter
+          &ldquo;open&rdquo;. Click vertical card para filtrar por categoría sugerida.
+          Similarity en rojo (&lt;0.5) = el library no tiene nada cercano.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> high frequency + low
+          similarity = oportunidad clara para crear prompts nuevos. Resolved con
+          resolved_by_prompt_id = trazabilidad de qué prompt llenó el hueco.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

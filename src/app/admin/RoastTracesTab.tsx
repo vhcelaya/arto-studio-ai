@@ -69,9 +69,24 @@ export default function RoastTracesTab({
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Roast Traces</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Every public brand roast is a trace — input + output + metadata = learning signal.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> cada vez que alguien corre
+          Brand Roast en arto-studio-ai (público, gratis, rate-limited a 10/h por IP),
+          se guarda aquí: marca, industria, scores (overall / strategy / creativity /
+          narrative / digital), modelo, latencia.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> top stats muestran AI
+          vs Fallback ratio. Tabla lista los traces recientes — click una fila para ver
+          input/output completos. Filtra por industria para ver patrones por sector.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> Fallback rate &gt; 5%
+          = revisar Anthropic API health. Latencia &gt; 20s = revisar prompts.
+          Industries variadas = adopción amplia, indicador de organic discovery.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

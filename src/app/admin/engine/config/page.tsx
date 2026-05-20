@@ -79,10 +79,25 @@ export default function ConfigPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Engine config</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Runtime settings the engine reads each tick. Read-only here — mutations require
-        a separate PR with a PATCH endpoint.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> settings que el engine lee
+          en cada tick — budget caps, thresholds de outreach, banned words,
+          allowlist/blocklist de dominios, toggle global de pausa.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> scroll por categorías
+          (Budget / Outreach / Content / Banned words / Domain lists / Engine). El
+          banner arriba indica si el engine está RUNNING o PAUSED.
+          <strong className="text-zinc-900"> Read-only</strong> — cambios via SQL o PR
+          con PATCH endpoint.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> engine_paused = true →
+          algo se rompió y alguien lo apagó (revisar Signals). Budget caps acordes a
+          presupuesto mensual real ($200/mes default).
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

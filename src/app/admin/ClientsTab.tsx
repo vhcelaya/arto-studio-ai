@@ -117,9 +117,24 @@ export default function ClientsTab({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Create, revoke, and manage API keys. Keys grant access to specific gated skills.
-          </p>
+          <div className="mt-4 max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+            <p>
+              <strong className="text-zinc-900">Qué es:</strong> clientes con API key
+              para skills gated (brand-positioning paid). Cada uno tiene tier (trial /
+              starter / agency / enterprise / internal), allowed_skills y rate limit.
+            </p>
+            <p className="mt-1.5">
+              <strong className="text-zinc-900">Cómo usarlo:</strong> &ldquo;Create
+              client&rdquo; genera API key — se muestra <strong>UNA vez</strong>, copia
+              inmediato. Edit para subir/bajar tier. Revoke desactiva (no elimina).
+            </p>
+            <p className="mt-1.5">
+              <strong className="text-zinc-900">Qué buscar:</strong> trial_calls_used
+              cerca del limit = oportunidad de outreach para upgrade. Trial → Starter
+              conversion es el primer paso. Si un cliente paid no aparece, revisar
+              Stripe webhook en Vercel logs.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreate(true)}

@@ -125,10 +125,23 @@ export default function AttributionPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Attribution</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Conversion funnel by source, campaign, and UTM. Measure what's driving signups
-        and revenue.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> eventos de conversión por
+          source, campaign y UTM. Cubre el funnel: signup → trial_start →
+          first_search → first_skill_run → conversion (paid) → churn / reactivation.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> click event-type card
+          o source card para filtrar. Click fila para expandir y ver UTM completo +
+          metadata.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> &ldquo;Conversions
+          30d&rdquo; creciendo = funnel sano. &ldquo;Value 30d&rdquo; comparable al CAC
+          objetivo. Sources concentrados en 1-2 canales = riesgo, diversificar.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

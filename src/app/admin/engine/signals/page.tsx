@@ -139,9 +139,22 @@ export default function SignalsPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Signals</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Anomalies, alerts, and escalations from engine modules. Resolve to silence.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> alertas, anomalías y
+          escalaciones que los módulos del engine emiten. Bounce alto, scraper
+          bloqueado, conversion dip, churn risk, budget warning, etc.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> default filter es
+          &ldquo;Active only&rdquo;. Click una type card para filtrar por tipo. Botón
+          &ldquo;Resolve&rdquo; marca la señal como atendida (active=false).
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> Active = 0 → engine
+          sano. Critical aparece → pausa decisiones hasta entender qué pasó.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">
