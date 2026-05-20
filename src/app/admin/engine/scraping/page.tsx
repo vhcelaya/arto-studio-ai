@@ -152,9 +152,24 @@ export default function ScrapingPage() {
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Scraping</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Outreach targets across all sources. Atlas seeds + scraped leads + signup conversions.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> outreach targets — cuentas que
+          ARTO podría contactar. Vienen del Atlas (curados a mano), de signups, de power
+          users, o de scraping automático cuando Module 4 esté live.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> click una source card
+          para filtrar por origen. Combina con status (qualified / contacted / converted)
+          y language. La tabla muestra los 100 más recientes.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> &ldquo;Qualified&rdquo;
+          subiendo = pipeline saludable. &ldquo;Converted&rdquo; = leads que ya pagaron.
+          Si &ldquo;Pending&rdquo; no se mueve en &gt;7 días, Module 2 (Outreach) está
+          dormido.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

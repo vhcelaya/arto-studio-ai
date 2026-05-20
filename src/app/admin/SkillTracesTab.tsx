@@ -101,9 +101,25 @@ export default function SkillTracesTab({
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Skill Traces</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Every gated-skill call is a trace — input, output, client, latency. Feeds continual learning.
-      </p>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4 text-sm text-zinc-700">
+        <p>
+          <strong className="text-zinc-900">Qué es:</strong> cada llamada a un skill
+          gated (brand-positioning, brand-roast) deja trace — input del cliente, output
+          del modelo, latencia, AI vs fallback. Es la materia prima del continual
+          learning.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Cómo usarlo:</strong> filtra por skill_slug
+          (brand-positioning, brand-roast) o por cliente. Click fila para ver input y
+          output completos en JSON.
+        </p>
+        <p className="mt-1.5">
+          <strong className="text-zinc-900">Qué buscar:</strong> latency promedio
+          subiendo = revisar prompts o modelo. Fallback rate &gt; 5% = revisar
+          Anthropic API. Concentración en 1 cliente = oportunidad de upgrade a tier
+          mayor.
+        </p>
+      </div>
 
       {loading && (
         <div className="mt-8 flex items-center gap-3 text-sm text-zinc-500">

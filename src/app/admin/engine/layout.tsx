@@ -9,6 +9,10 @@ const TABS = [
   { href: "/admin/engine/scraping", label: "Scraping" },
   { href: "/admin/engine/runs", label: "Runs" },
   { href: "/admin/engine/signals", label: "Signals" },
+  { href: "/admin/engine/social", label: "Social" },
+  { href: "/admin/engine/attribution", label: "Attribution" },
+  { href: "/admin/engine/gaps", label: "Gaps" },
+  { href: "/admin/engine/config", label: "Config" },
 ];
 
 export default function EngineLayout({ children }: { children: React.ReactNode }) {

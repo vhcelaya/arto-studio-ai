@@ -361,3 +361,353 @@ export async function resolveSignal(id: string, resolvedBy: string): Promise<boo
     return false;
   }
 }
+
+/* ───────────────────────────── agent_social_log ───────────────────────────── */
+
+export interface SocialLog {
+  id: string;
+  run_date: string;
+  prompt_id: string | null;
+  platform: "twitter" | "linkedin" | "threads";
+  language: "en" | "es";
+  post_content: string;
+  buffer_post_id: string | null;
+  status: "draft" | "scheduled" | "published" | "failed" | "skipped";
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface SocialStats {
+  total: number;
+  byPlatform: { platform: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+  byLanguage: { language: string; count: number }[];
+  last7dPublished: number;
+}
+
+export async function getSocialStats(): Promise<SocialStats | null> {
+  const sql = getDb();
+  if (!sql) return null;
+  try {
+    const [totalRow] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM agent_social_log
+    `;
+    const byPlatform = await sql<{ platform: string; count: string }[]>`
+      SELECT platform, COUNT(*)::text AS count
+      FROM agent_social_log
+      GROUP BY platform
+      ORDER BY COUNT(*) DESC
+    `;
+    const byStatus = await sql<{ status: string; count: string }[]>`
+      SELECT status, COUNT(*)::text AS count
+      FROM agent_social_log
+      GROUP BY status
+      ORDER BY COUNT(*) DESC
+    `;
+    const byLanguage = await sql<{ language: string; count: string }[]>`
+      SELECT language, COUNT(*)::text AS count
+      FROM agent_social_log
+      GROUP BY language
+      ORDER BY COUNT(*) DESC
+    `;
+    const [last7d] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count
+      FROM agent_social_log
+      WHERE status = 'published' AND created_at > NOW() - INTERVAL '7 days'
+    `;
+    return {
+      total: Number(totalRow?.count ?? 0),
+      byPlatform: byPlatform.map((r) => ({ platform: r.platform, count: Number(r.count) })),
+      byStatus: byStatus.map((r) => ({ status: r.status, count: Number(r.count) })),
+      byLanguage: byLanguage.map((r) => ({ language: r.language, count: Number(r.count) })),
+      last7dPublished: Number(last7d?.count ?? 0),
+    };
+  } catch (error) {
+    console.error("[engine-store] getSocialStats failed:", error);
+    return null;
+  }
+}
+
+export async function getSocialLogs(options?: {
+  platform?: string;
+  status?: string;
+  language?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<SocialLog[]> {
+  const sql = getDb();
+  if (!sql) return [];
+  const limit = Math.min(options?.limit ?? 50, 200);
+  const offset = Math.max(options?.offset ?? 0, 0);
+
+  const filters: string[] = [];
+  const values: unknown[] = [];
+  function add(clause: string, value: unknown) {
+    values.push(value);
+    filters.push(clause.replace("$$", `$${values.length}`));
+  }
+  if (options?.platform) add("platform = $$", options.platform);
+  if (options?.status) add("status = $$", options.status);
+  if (options?.language) add("language = $$", options.language);
+
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+
+  try {
+    const rows = await sql.unsafe<SocialLog[]>(
+      `SELECT * FROM agent_social_log ${where}
+       ORDER BY created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
+      values as never[]
+    );
+    return rows;
+  } catch (error) {
+    console.error("[engine-store] getSocialLogs failed:", error);
+    return [];
+  }
+}
+
+/* ───────────────────────────── engine_config ───────────────────────────── */
+
+export interface EngineConfigRow {
+  key: string;
+  value: unknown;
+  description: string | null;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export async function getConfig(): Promise<EngineConfigRow[]> {
+  const sql = getDb();
+  if (!sql) return [];
+  try {
+    const rows = await sql<EngineConfigRow[]>`
+      SELECT key, value, description, updated_at, updated_by
+      FROM engine_config
+      ORDER BY key ASC
+    `;
+    return rows;
+  } catch (error) {
+    console.error("[engine-store] getConfig failed:", error);
+    return [];
+  }
+}
+
+/* ───────────────────────────── attribution_events ───────────────────────────── */
+
+export interface AttributionEvent {
+  id: string;
+  event_type: string;
+  source: string | null;
+  source_detail: string | null;
+  target_id: string | null;
+  user_email: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  value_usd: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AttributionStats {
+  total: number;
+  totalValueUsd: number;
+  byEventType: { event_type: string; count: number; total_value: number }[];
+  bySource: { source: string | null; count: number }[];
+  byCampaign: { utm_campaign: string | null; count: number }[];
+  last30dConversions: number;
+  last30dValueUsd: number;
+}
+
+export async function getAttributionStats(): Promise<AttributionStats | null> {
+  const sql = getDb();
+  if (!sql) return null;
+  try {
+    const [totalRow] = await sql<{ count: string; total_value: string | null }[]>`
+      SELECT COUNT(*)::text AS count, COALESCE(SUM(value_usd), 0)::text AS total_value
+      FROM attribution_events
+    `;
+    const byEventType = await sql<
+      { event_type: string; count: string; total_value: string | null }[]
+    >`
+      SELECT event_type, COUNT(*)::text AS count, COALESCE(SUM(value_usd), 0)::text AS total_value
+      FROM attribution_events
+      GROUP BY event_type
+      ORDER BY COUNT(*) DESC
+    `;
+    const bySource = await sql<{ source: string | null; count: string }[]>`
+      SELECT source, COUNT(*)::text AS count
+      FROM attribution_events
+      GROUP BY source
+      ORDER BY COUNT(*) DESC
+      LIMIT 20
+    `;
+    const byCampaign = await sql<{ utm_campaign: string | null; count: string }[]>`
+      SELECT utm_campaign, COUNT(*)::text AS count
+      FROM attribution_events
+      WHERE utm_campaign IS NOT NULL
+      GROUP BY utm_campaign
+      ORDER BY COUNT(*) DESC
+      LIMIT 20
+    `;
+    const [last30d] = await sql<{ count: string; total_value: string | null }[]>`
+      SELECT COUNT(*)::text AS count, COALESCE(SUM(value_usd), 0)::text AS total_value
+      FROM attribution_events
+      WHERE event_type = 'conversion' AND created_at > NOW() - INTERVAL '30 days'
+    `;
+    return {
+      total: Number(totalRow?.count ?? 0),
+      totalValueUsd: Number(totalRow?.total_value ?? 0),
+      byEventType: byEventType.map((r) => ({
+        event_type: r.event_type,
+        count: Number(r.count),
+        total_value: Number(r.total_value ?? 0),
+      })),
+      bySource: bySource.map((r) => ({ source: r.source, count: Number(r.count) })),
+      byCampaign: byCampaign.map((r) => ({
+        utm_campaign: r.utm_campaign,
+        count: Number(r.count),
+      })),
+      last30dConversions: Number(last30d?.count ?? 0),
+      last30dValueUsd: Number(last30d?.total_value ?? 0),
+    };
+  } catch (error) {
+    console.error("[engine-store] getAttributionStats failed:", error);
+    return null;
+  }
+}
+
+export async function getAttributionEvents(options?: {
+  event_type?: string;
+  source?: string;
+  utm_campaign?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AttributionEvent[]> {
+  const sql = getDb();
+  if (!sql) return [];
+  const limit = Math.min(options?.limit ?? 50, 200);
+  const offset = Math.max(options?.offset ?? 0, 0);
+
+  const filters: string[] = [];
+  const values: unknown[] = [];
+  function add(clause: string, value: unknown) {
+    values.push(value);
+    filters.push(clause.replace("$$", `$${values.length}`));
+  }
+  if (options?.event_type) add("event_type = $$", options.event_type);
+  if (options?.source) add("source = $$", options.source);
+  if (options?.utm_campaign) add("utm_campaign = $$", options.utm_campaign);
+
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+
+  try {
+    const rows = await sql.unsafe<AttributionEvent[]>(
+      `SELECT * FROM attribution_events ${where}
+       ORDER BY created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
+      values as never[]
+    );
+    return rows;
+  } catch (error) {
+    console.error("[engine-store] getAttributionEvents failed:", error);
+    return [];
+  }
+}
+
+/* ───────────────────────────── content_gaps ───────────────────────────── */
+
+export interface ContentGap {
+  id: string;
+  query_pattern: string;
+  frequency: number;
+  avg_similarity: number | null;
+  suggested_vertical: string | null;
+  status: "open" | "in_progress" | "resolved" | "dismissed";
+  resolved_by_prompt_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface GapsStats {
+  total: number;
+  open: number;
+  byStatus: { status: string; count: number }[];
+  byVertical: { suggested_vertical: string | null; count: number }[];
+}
+
+export async function getGapsStats(): Promise<GapsStats | null> {
+  const sql = getDb();
+  if (!sql) return null;
+  try {
+    const [totalRow] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM content_gaps
+    `;
+    const [openRow] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM content_gaps WHERE status = 'open'
+    `;
+    const byStatus = await sql<{ status: string; count: string }[]>`
+      SELECT status, COUNT(*)::text AS count
+      FROM content_gaps
+      GROUP BY status
+      ORDER BY COUNT(*) DESC
+    `;
+    const byVertical = await sql<{ suggested_vertical: string | null; count: string }[]>`
+      SELECT suggested_vertical, COUNT(*)::text AS count
+      FROM content_gaps
+      WHERE status = 'open'
+      GROUP BY suggested_vertical
+      ORDER BY COUNT(*) DESC
+      LIMIT 15
+    `;
+    return {
+      total: Number(totalRow?.count ?? 0),
+      open: Number(openRow?.count ?? 0),
+      byStatus: byStatus.map((r) => ({ status: r.status, count: Number(r.count) })),
+      byVertical: byVertical.map((r) => ({
+        suggested_vertical: r.suggested_vertical,
+        count: Number(r.count),
+      })),
+    };
+  } catch (error) {
+    console.error("[engine-store] getGapsStats failed:", error);
+    return null;
+  }
+}
+
+export async function getGaps(options?: {
+  status?: string;
+  suggested_vertical?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ContentGap[]> {
+  const sql = getDb();
+  if (!sql) return [];
+  const limit = Math.min(options?.limit ?? 50, 200);
+  const offset = Math.max(options?.offset ?? 0, 0);
+
+  const filters: string[] = [];
+  const values: unknown[] = [];
+  function add(clause: string, value: unknown) {
+    values.push(value);
+    filters.push(clause.replace("$$", `$${values.length}`));
+  }
+  if (options?.status) add("status = $$", options.status);
+  if (options?.suggested_vertical)
+    add("suggested_vertical = $$", options.suggested_vertical);
+
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+
+  try {
+    const rows = await sql.unsafe<ContentGap[]>(
+      `SELECT * FROM content_gaps ${where}
+       ORDER BY frequency DESC, created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
+      values as never[]
+    );
+    return rows;
+  } catch (error) {
+    console.error("[engine-store] getGaps failed:", error);
+    return [];
+  }
+}
