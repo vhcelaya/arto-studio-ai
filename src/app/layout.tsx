@@ -15,13 +15,13 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "ARTO Studio AI — La agencia de marketing que nunca duerme",
+  title: "ARTO Studio AI — Prompts, Skills, Agents",
   description:
-    "Accede a la metodología de ARTO Group — strategy, creativity, narrative y production — a través de un agente AI entrenado con 15+ años de experiencia real. Desde $99/mes.",
+    "Your creative studio, powered by AI. 3,000 production-grade prompts in EN / ES, AI-powered creative skills, and autonomous agents. Built on 15+ years of real agency methodology.",
   openGraph: {
-    title: "ARTO Studio AI — La agencia de marketing que nunca duerme",
+    title: "ARTO Studio AI — Prompts, Skills, Agents",
     description:
-      "La misma metodología que usamos con Google, Nike y Uber. Ahora accesible para todos.",
+      "3,000 bilingual prompts, AI-powered creative skills, and autonomous agents — the same methodology we use with Google, Nike, Uber.",
     type: "website",
   },
 };
@@ -32,10 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="es"
-      className={`${archivo.variable} ${manrope.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${archivo.variable} ${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
