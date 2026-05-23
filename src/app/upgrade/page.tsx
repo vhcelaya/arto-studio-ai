@@ -153,7 +153,7 @@ export default function UpgradePage() {
       <nav className="border-b border-border px-6 py-4">
         <Link href="/" className="flex items-center gap-3">
           <Image src="/brand/arto-logo-black.png" alt="ARTO" width={80} height={24} className="h-6 w-auto" />
-          <span className="text-sm font-medium tracking-wide text-muted">STUDIO AI</span>
+          <span className="text-sm font-medium tracking-wide text-muted">Creative 24/7</span>
         </Link>
       </nav>
       <Suspense fallback={null}>
