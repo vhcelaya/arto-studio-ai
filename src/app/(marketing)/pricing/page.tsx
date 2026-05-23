@@ -6,11 +6,11 @@ export const metadata: Metadata = {
   description: "Start free. Unlock the full prompt library for $9/mo. Skills and AI Agents launching soon.",
 };
 
-/* The Pro $9 checkout still lives on library.artostudio.ai while the prompts
-   catalog is being migrated. Once /prompts is local, this becomes
-   /api/stripe/checkout?plan=pro. */
-const PRO_CHECKOUT_HREF = "https://library.artostudio.ai/api/stripe/checkout?plan=pro";
-const LIBRARY_SIGNUP_HREF = "https://library.artostudio.ai/login";
+/* Pro $9 checkout is now internal. The route is auth-gated: if the user isn't
+   signed in, /api/stripe/checkout/pro bounces them to /login with a `next`
+   param and returns here after sign-in. After payment, Stripe redirects to
+   /account?upgraded=pro and the existing webhook updates profiles.tier. */
+const PRO_CHECKOUT_HREF = "/api/stripe/checkout/pro";
 
 const TIERS = [
   {
@@ -39,7 +39,7 @@ const TIERS = [
     period: "/ per month",
     cta: "Subscribe",
     ctaHref: PRO_CHECKOUT_HREF,
-    external: true,
+    external: false,
     ctaStyle: "bg-neutral-900 text-white hover:bg-neutral-700",
     badge: null,
     highlight: true,
