@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 // Portfolio data from ARTO Portafolio 2026 (Notion)
@@ -509,51 +508,7 @@ const allYears = [...new Set(projects.map((p) => p.year))]
 
 export default function WorkPage() {
   return (
-    <div className="flex flex-col flex-1 bg-white">
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/brand/arto-logo-black.png"
-              alt="ARTO"
-              width={80}
-              height={24}
-              className="h-6 w-auto"
-            />
-            <span className="text-sm font-medium tracking-wide text-muted">
-              STUDIO AI
-            </span>
-          </Link>
-          <div className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/work"
-              className="text-sm font-medium text-foreground transition-colors"
-            >
-              Work
-            </Link>
-            <Link
-              href="/roast"
-              className="text-sm text-muted hover:text-foreground transition-colors"
-            >
-              Brand Roast
-            </Link>
-            <Link
-              href="/#pricing"
-              className="text-sm text-muted hover:text-foreground transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/#waitlist"
-              className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-            >
-              Join Waitlist
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <>
       {/* Header */}
       <section className="border-b border-zinc-200">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
@@ -683,7 +638,7 @@ export default function WorkPage() {
             and real results. Now it&apos;s your turn.
           </p>
           <Link
-            href="/#waitlist"
+            href="/pricing"
             className="mt-8 inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-100"
           >
             Start your free trial
@@ -691,26 +646,6 @@ export default function WorkPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-200 bg-zinc-900 text-white">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-            <div className="flex items-center gap-3">
-              <img
-                src="/brand/arto-logo-black.png"
-                alt="ARTO"
-                className="h-4 w-auto invert"
-              />
-              <span className="text-xs tracking-wide text-zinc-500">
-                STUDIO AI
-              </span>
-            </div>
-            <p className="text-xs text-zinc-500">
-              A product by ARTO Group. Design, Culture & Technology since 2009.
-            </p>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }

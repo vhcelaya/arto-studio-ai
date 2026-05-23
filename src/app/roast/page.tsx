@@ -561,7 +561,7 @@ function BrandRoastInner() {
               className="h-6 w-auto"
             />
             <span className="text-sm font-medium tracking-wide text-muted">
-              STUDIO AI
+              Creative 24/7
             </span>
           </Link>
 
@@ -1056,7 +1056,7 @@ function BrandRoastInner() {
                 height={18}
                 className="h-4 w-auto invert"
               />
-              <span className="text-xs tracking-wide text-zinc-500">STUDIO AI</span>
+              <span className="text-xs tracking-wide text-zinc-500">Creative 24/7</span>
             </div>
             <p className="text-xs text-zinc-500">
               A product by ARTO Group. Design, Culture & Technology since 2009.

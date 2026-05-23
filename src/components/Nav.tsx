@@ -34,9 +34,9 @@ export default function Nav({ user }: Props) {
   return (
     <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
       <Link href="/" className="flex items-baseline gap-2">
-        <img src="/brand/arto-logo-black.png" alt="ARTO Studio AI" className="h-6 w-auto" />
+        <img src="/brand/arto-logo-black.png" alt="ARTO Creative 24/7" className="h-6 w-auto" />
         <span className="hidden text-sm font-medium tracking-tight text-neutral-500 sm:inline">
-          / Studio AI
+          Creative 24/7
         </span>
       </Link>
 
