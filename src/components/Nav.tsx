@@ -4,15 +4,32 @@ import Link from "next/link";
 import { useState } from "react";
 
 /* Unified ARTO Studio AI Navigation. Products dropdown shows the 4-product
-   structure: Library + Skills + Agents + Brand Roast. Prompt Library links
-   external to library.artostudio.ai while it's still hosted there; once
-   migrated into this codebase the href flips to internal /prompts. */
+   structure. Auth-aware: server passes the user prop so the right-side
+   button is "Sign in" (anon) or initials → /account (signed in). */
 
 const LIBRARY_HREF = "https://library.artostudio.ai/prompts";
 
-export default function Nav() {
+interface NavUser {
+  email?: string | null;
+}
+
+interface Props {
+  user: NavUser | null;
+}
+
+function initialsOf(email?: string | null): string {
+  if (!email) return "U";
+  const local = email.split("@")[0] ?? "";
+  if (local.length === 0) return "U";
+  const parts = local.split(/[.\-_]/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase();
+}
+
+export default function Nav({ user }: Props) {
   const [productsOpen, setProductsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const signedIn = Boolean(user);
 
   return (
     <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -118,12 +135,25 @@ export default function Nav() {
         <Link href="/pricing" className="text-neutral-700 hover:text-neutral-900">
           Pricing
         </Link>
-        <Link
-          href="/roast"
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-white transition hover:bg-neutral-700"
-        >
-          Try Brand Roast
-        </Link>
+        {signedIn ? (
+          <Link
+            href="/account"
+            className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-neutral-700 transition hover:border-neutral-400"
+            title={user?.email || undefined}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+              {initialsOf(user?.email)}
+            </span>
+            <span className="text-xs">Account</span>
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-white transition hover:bg-neutral-700"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
 
       <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
@@ -186,13 +216,26 @@ export default function Nav() {
             <Link href="/pricing" onClick={() => setMobileOpen(false)} className="text-neutral-700">
               Pricing
             </Link>
-            <Link
-              href="/roast"
-              onClick={() => setMobileOpen(false)}
-              className="mt-1 rounded-md bg-neutral-900 px-3 py-2 text-center text-white"
-            >
-              Try Brand Roast
-            </Link>
+            {signedIn ? (
+              <Link
+                href="/account"
+                onClick={() => setMobileOpen(false)}
+                className="mt-1 flex items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-2 text-center text-neutral-700"
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                  {initialsOf(user?.email)}
+                </span>
+                <span>Account</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
+                className="mt-1 rounded-md bg-neutral-900 px-3 py-2 text-center text-white"
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       )}
