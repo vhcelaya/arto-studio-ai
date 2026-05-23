@@ -53,6 +53,9 @@ export default function Footer() {
               <Link href="/pricing" className="text-neutral-600 hover:text-neutral-900">
                 Pricing
               </Link>
+              <Link href="/learn" className="text-neutral-600 hover:text-neutral-900">
+                Learn
+              </Link>
               <Link href="/studio" className="text-neutral-600 hover:text-neutral-900">
                 Studio
               </Link>
