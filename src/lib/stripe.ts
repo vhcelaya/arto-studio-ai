@@ -14,4 +14,5 @@ export function getStripe(): Stripe | null {
 }
 
 export const STRIPE_PRICE_ID_STARTER = process.env.STRIPE_PRICE_ID_STARTER || "";
+export const STRIPE_PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO || "";
 export const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || "";
