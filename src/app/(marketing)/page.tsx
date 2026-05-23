@@ -29,7 +29,7 @@ export default function HomePage() {
               By ARTO Group — 15+ years with Google, Nike, Uber
             </p>
             <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              The marketing agency
+              The creative studio
               <br />
               <span className="text-neutral-400">that never sleeps.</span>
             </h1>

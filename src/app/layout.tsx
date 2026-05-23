@@ -15,11 +15,11 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "ARTO Studio AI — The marketing agency that never sleeps",
+  title: "ARTO Studio AI — The creative studio that never sleeps",
   description:
     "Access ARTO's real methodology — strategy, creativity, narrative, and production — through 3,000 prompts, AI skills, and autonomous agents. Built on 15+ years with Google, Nike, Uber.",
   openGraph: {
-    title: "ARTO Studio AI — The marketing agency that never sleeps",
+    title: "ARTO Studio AI — The creative studio that never sleeps",
     description:
       "3,000 prompts, AI-powered creative skills, autonomous agents. The same methodology we use with Google, Nike, Uber — now self-serve.",
     type: "website",
