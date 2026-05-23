@@ -1,0 +1,236 @@
+import Link from "next/link";
+import { listPrompts } from "@/lib/supabase/queries";
+import {
+  AI_GROUPS,
+  CATEGORY_STYLES,
+  DIFFICULTY_STYLES,
+  TIER_STYLES,
+  VERTICALS,
+  aiGroupOf,
+  type AiGroup,
+  type Category,
+  type Difficulty,
+  type Tier,
+} from "@/types/prompt";
+import {
+  t,
+  type Lang,
+  AI_GROUP_LABEL_ES,
+  DIFFICULTY_LABEL_ES,
+  VERTICAL_LABEL_ES,
+} from "@/lib/i18n";
+import SmartSearch from "./SmartSearch";
+
+const CATEGORIES: Category[] = [
+  "branding","graphic_design","copywriting","photography","video","ux_ui","illustration","marketing","music","architecture","fashion","creative_productivity",
+];
+const DIFFICULTIES: Difficulty[] = ["beginner","intermediate","advanced","expert"];
+const TIERS: Tier[] = ["free","pro","enterprise"];
+const AI_GROUP_LIST: AiGroup[] = ["text","image","video","music","voice","any"];
+
+interface SearchParams {
+  category?: string;
+  difficulty?: string;
+  tier?: string;
+  group?: string;
+  q?: string;
+  lang?: "en" | "es";
+  page?: string;
+}
+
+export default async function CatalogPage(props: { searchParams: Promise<SearchParams> }) {
+  const sp = await props.searchParams;
+  const lang: Lang = sp.lang === "es" ? "es" : "en";
+  const dict = t(lang);
+  const page = Math.max(1, parseInt(sp.page || "1", 10));
+
+  const { prompts, total, totalPages } = await listPrompts(
+    {
+      category: sp.category as Category | undefined,
+      difficulty: sp.difficulty as Difficulty | undefined,
+      tier: sp.tier as Tier | undefined,
+      aiGroup: sp.group as AiGroup | undefined,
+      search: sp.q || undefined,
+      lang,
+    },
+    page,
+  );
+
+  const qs = (overrides: Partial<SearchParams>) => {
+    const merged = { ...sp, ...overrides };
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, String(v));
+    return `?${params.toString()}`;
+  };
+
+  const labelCategory = (c: Category): string =>
+    lang === "es" ? VERTICAL_LABEL_ES[c] ?? VERTICALS[c].label_en : VERTICALS[c].label_en;
+  const labelDifficulty = (d: Difficulty): string =>
+    lang === "es" ? DIFFICULTY_LABEL_ES[d] ?? DIFFICULTY_STYLES[d].label : DIFFICULTY_STYLES[d].label;
+  const labelAiGroup = (g: AiGroup): string =>
+    lang === "es" ? AI_GROUP_LABEL_ES[g] ?? AI_GROUPS[g].label : AI_GROUPS[g].label;
+
+  return (
+    <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">{dict.catalog}</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {total.toLocaleString()} prompts · {dict.page_label(page, totalPages || 1)}
+          </p>
+        </div>
+        <div className="text-sm">
+          <span className="text-neutral-500">{dict.language}: </span>
+          <Link
+            href={qs({ lang: "en", page: "1" })}
+            className={lang === "en" ? "font-semibold underline" : "hover:underline"}
+          >EN</Link>
+          <span className="mx-2 text-neutral-300">·</span>
+          <Link
+            href={qs({ lang: "es", page: "1" })}
+            className={lang === "es" ? "font-semibold underline" : "hover:underline"}
+          >ES</Link>
+        </div>
+      </div>
+
+      <div className="mt-6"><SmartSearch lang={lang} /></div>
+
+      <div className="mt-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-24 shrink-0 text-neutral-500">{dict.category}</span>
+          {CATEGORIES.map((v) => {
+            const active = sp.category === v;
+            const style = CATEGORY_STYLES[v];
+            const next = qs({ category: active ? "" : v, page: "1" });
+            const cls = active
+              ? `rounded-full ${style.chip} px-3 py-1 text-xs font-semibold ring-2 ${style.ring}`
+              : `rounded-full ${style.chip} px-3 py-1 text-xs opacity-70 hover:opacity-100`;
+            return (
+              <Link key={v} href={next} className={cls}>
+                {labelCategory(v)}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-24 shrink-0 text-neutral-500">{dict.ai_tool}</span>
+          {AI_GROUP_LIST.map((v) => {
+            const active = sp.group === v;
+            const meta = AI_GROUPS[v];
+            const next = qs({ group: active ? "" : v, page: "1" });
+            const cls = active
+              ? `rounded-full ${meta.chip} px-3 py-1 text-xs font-semibold`
+              : `rounded-full ${meta.chip} px-3 py-1 text-xs opacity-60 hover:opacity-100`;
+            return (
+              <Link key={v} href={next} className={cls}>
+                {labelAiGroup(v)}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-24 shrink-0 text-neutral-500">{dict.difficulty}</span>
+          {DIFFICULTIES.map((v) => {
+            const active = sp.difficulty === v;
+            const style = DIFFICULTY_STYLES[v];
+            const next = qs({ difficulty: active ? "" : v, page: "1" });
+            const cls = active
+              ? `rounded-full ${style.chip} px-3 py-1 text-xs font-semibold`
+              : `rounded-full ${style.chip} px-3 py-1 text-xs opacity-60 hover:opacity-100`;
+            return (
+              <Link key={v} href={next} className={cls}>
+                {labelDifficulty(v)}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-24 shrink-0 text-neutral-500">{dict.tier}</span>
+          {TIERS.map((v) => {
+            const active = sp.tier === v;
+            const style = TIER_STYLES[v];
+            const next = qs({ tier: active ? "" : v, page: "1" });
+            const cls = active
+              ? `rounded-full ${style.chip} px-3 py-1 text-xs font-semibold`
+              : `rounded-full ${style.chip} px-3 py-1 text-xs opacity-60 hover:opacity-100`;
+            return (
+              <Link key={v} href={next} className={cls}>
+                {style.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {(sp.category || sp.difficulty || sp.tier || sp.group || sp.q) && (
+          <div>
+            <Link href={qs({ category: "", difficulty: "", tier: "", group: "", q: "", page: "1" })} className="text-xs text-neutral-500 underline">
+              {dict.clear_filters}
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {prompts.length === 0 ? (
+        <p className="mt-12 text-neutral-500">{dict.no_match}</p>
+      ) : (
+        <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {prompts.map((p) => {
+            const title = lang === "es" ? p.title_es : p.title_en;
+            const cat = CATEGORY_STYLES[p.category];
+            const diff = DIFFICULTY_STYLES[p.difficulty];
+            const tier = TIER_STYLES[p.tier];
+            const aiGroup = aiGroupOf(p.ai_model);
+            const aiInfo = AI_GROUPS[aiGroup];
+            return (
+              <li key={p.id}>
+                <Link
+                  href={{ pathname: `/prompts/${p.id}`, query: { lang } }}
+                  className="group relative block h-full overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-mono text-neutral-400">{p.id}</span>
+                    <div className="flex items-center gap-1.5">
+                      {p.is_featured && <span title="Editor's pick" className="text-amber-500" aria-label="Featured">★</span>}
+                      <span className={`rounded-full ${tier.chip} px-2 py-0.5 text-[11px] font-medium`}>
+                        {tier.label}
+                      </span>
+                    </div>
+                  </div>
+                  <h3 className="mt-2 line-clamp-2 font-medium">{title}</h3>
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+                    <span className={`rounded-full ${cat.chip} px-2 py-0.5 font-medium`}>
+                      {labelCategory(p.category)}
+                    </span>
+                    <span className={`rounded-full ${diff.chip} px-2 py-0.5`}>
+                      {labelDifficulty(p.difficulty)}
+                    </span>
+                    <span className={`rounded-full ${aiInfo.chip} px-2 py-0.5`}>
+                      {labelAiGroup(aiGroup)}
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {totalPages > 1 && (
+        <nav className="mt-10 flex items-center justify-between text-sm">
+          <Link
+            href={qs({ page: String(Math.max(1, page - 1)) })}
+            className={`rounded-md border border-neutral-300 px-3 py-1.5 ${page === 1 ? "pointer-events-none opacity-40" : "hover:border-neutral-500"}`}
+          >{dict.previous}</Link>
+          <span className="text-neutral-500">{dict.page_label(page, totalPages)}</span>
+          <Link
+            href={qs({ page: String(Math.min(totalPages, page + 1)) })}
+            className={`rounded-md border border-neutral-300 px-3 py-1.5 ${page >= totalPages ? "pointer-events-none opacity-40" : "hover:border-neutral-500"}`}
+          >{dict.next}</Link>
+        </nav>
+      )}
+    </div>
+  );
+}
