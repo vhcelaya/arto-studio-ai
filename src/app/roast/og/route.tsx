@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
               color: "#a1a1aa",
             }}
           >
-            ARTO STUDIO AI
+            ARTO Creative 24/7
           </span>
           <span style={{ fontSize: "18px", color: "#52525b" }}>×</span>
           <span style={{ fontSize: isVertical ? "18px" : "15px", color: "#71717a" }}>
