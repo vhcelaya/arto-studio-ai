@@ -1,13 +1,19 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/digest",
+      "schedule": "0 14 * * 1"
+    }
+  ],
   "redirects": [
     {
       "source": "/library",
-      "destination": "https://library.artostudio.ai/",
+      "destination": "/prompts",
       "permanent": true
     },
     {
       "source": "/library/:path*",
-      "destination": "https://library.artostudio.ai/:path*",
+      "destination": "/prompts/:path*",
       "permanent": true
     }
   ]
