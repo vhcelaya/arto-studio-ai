@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const LIBRARY_HREF = "https://library.artostudio.ai/prompts";
+const LIBRARY_HREF = "/prompts";
 
 export default function Footer() {
   return (

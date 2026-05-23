@@ -7,7 +7,7 @@ import { useState } from "react";
    structure. Auth-aware: server passes the user prop so the right-side
    button is "Sign in" (anon) or initials → /account (signed in). */
 
-const LIBRARY_HREF = "https://library.artostudio.ai/prompts";
+const LIBRARY_HREF = "/prompts";
 
 interface NavUser {
   email?: string | null;
@@ -64,10 +64,8 @@ export default function Nav({ user }: Props) {
 
           {productsOpen && (
             <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
-              <a
+              <Link
                 href={LIBRARY_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block rounded-md px-3 py-2.5 hover:bg-neutral-50"
                 onClick={() => setProductsOpen(false)}
               >
@@ -80,7 +78,7 @@ export default function Nav({ user }: Props) {
                 <p className="mt-0.5 text-xs text-neutral-500">
                   3,000 bilingual prompts across 12 creative verticals
                 </p>
-              </a>
+              </Link>
               <Link
                 href="/skills"
                 className="block rounded-md px-3 py-2.5 hover:bg-neutral-50"
@@ -173,10 +171,8 @@ export default function Nav({ user }: Props) {
         <div className="absolute left-0 right-0 top-full z-50 border-b border-neutral-200 bg-white px-6 py-4 md:hidden">
           <div className="flex flex-col gap-3 text-sm">
             <p className="text-xs font-semibold uppercase text-neutral-400">Products</p>
-            <a
+            <Link
               href={LIBRARY_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-neutral-700"
             >
@@ -184,7 +180,7 @@ export default function Nav({ user }: Props) {
               <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
                 Live
               </span>
-            </a>
+            </Link>
             <Link
               href="/skills"
               onClick={() => setMobileOpen(false)}

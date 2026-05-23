@@ -65,10 +65,8 @@ export default async function AccountPage() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <a
-          href="https://library.artostudio.ai/prompts"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href="/prompts"
           className="rounded-lg border border-neutral-200 bg-white p-5 transition hover:border-neutral-400"
         >
           <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
@@ -76,10 +74,10 @@ export default async function AccountPage() {
           </p>
           <p className="mt-2 font-semibold">Prompt Library</p>
           <p className="mt-1 text-sm text-neutral-500">
-            3,000 prompts across 12 verticals. Catalog hosted on library.artostudio.ai
-            during migration.
+            3,000 prompts across 12 verticals. Bilingual EN / ES, smart search,
+            collections, favorites.
           </p>
-        </a>
+        </Link>
         <Link
           href="/roast"
           className="rounded-lg border border-neutral-200 bg-white p-5 transition hover:border-neutral-400"

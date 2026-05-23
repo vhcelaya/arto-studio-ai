@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-const LIBRARY_BASE = "https://library.artostudio.ai/prompts";
+const LIBRARY_BASE = "/prompts";
 
 export default async function LearnSlugPage({ params }: Props) {
   const { slug } = await params;
@@ -77,14 +77,12 @@ export default async function LearnSlugPage({ params }: Props) {
           for unlimited access.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <a
+          <Link
             href={libraryHref}
-            target="_blank"
-            rel="noopener noreferrer"
             className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
           >
             Browse {page.slug.replace("-", " ")} prompts →
-          </a>
+          </Link>
           <Link
             href="/pricing"
             className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"

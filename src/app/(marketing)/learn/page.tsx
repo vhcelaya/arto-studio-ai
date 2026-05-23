@@ -48,18 +48,16 @@ export default function LearnIndex() {
           Ready to use these prompts?
         </h2>
         <p className="mt-2 max-w-xl text-neutral-600 sm:mx-auto">
-          The 3,000-prompt catalog lives at library.artostudio.ai. Browse
-          free or unlock the full library for $9/mo.
+          The 3,000-prompt catalog is live. Browse free or unlock the full
+          library for $9/mo.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <a
-            href="https://library.artostudio.ai/prompts"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/prompts"
             className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
           >
             Browse the catalog
-          </a>
+          </Link>
           <Link
             href="/pricing"
             className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
