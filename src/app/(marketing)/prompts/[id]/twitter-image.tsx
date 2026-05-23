@@ -5,7 +5,7 @@ import { VERTICALS } from "@/types/prompt";
 export const runtime = "nodejs";
 export const contentType = "image/png";
 export const size = { width: 1200, height: 630 };
-export const alt = "ARTO Studio AI · Prompt Library";
+export const alt = "ARTO · Prompt Library";
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -49,7 +49,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 22, color: "#737373", letterSpacing: 1 }}>
             <div style={{ width: 12, height: 12, background: "#0a0a0a", borderRadius: 999 }} />
-            ARTO STUDIO AI · PROMPT LIBRARY
+            ARTO · PROMPT LIBRARY
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ background: tierBg, color: prompt.tier === "free" ? "#064e3b" : "#fff", borderRadius: 999, padding: "8px 16px", fontSize: 18, fontWeight: 600 }}>
