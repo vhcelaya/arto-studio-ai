@@ -115,6 +115,9 @@ export default function Nav() {
           )}
         </div>
 
+        <Link href="/work" className="text-neutral-700 hover:text-neutral-900">
+          Work
+        </Link>
         <Link href="/pricing" className="text-neutral-700 hover:text-neutral-900">
           Pricing
         </Link>
@@ -183,6 +186,9 @@ export default function Nav() {
               </span>
             </Link>
             <div className="my-1 border-t border-neutral-100" />
+            <Link href="/work" onClick={() => setMobileOpen(false)} className="text-neutral-700">
+              Work
+            </Link>
             <Link href="/pricing" onClick={() => setMobileOpen(false)} className="text-neutral-700">
               Pricing
             </Link>

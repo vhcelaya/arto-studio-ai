@@ -212,24 +212,6 @@ export default function PricingPage() {
         </div>
       </div>
 
-      <div className="mt-16 border-t border-neutral-200 pt-12 text-center">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">
-          Looking for full-service?
-        </p>
-        <h3 className="text-xl font-bold tracking-tight">
-          Studio plans for agencies and brands
-        </h3>
-        <p className="mx-auto mt-2 max-w-xl text-neutral-600">
-          ARTO Studio also offers retainer-style Strategy, Creativity, Narrative,
-          and Production support starting at $99/mo via our Studio interface.
-        </p>
-        <Link
-          href="/studio"
-          className="mt-5 inline-block rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
-        >
-          Explore Studio plans
-        </Link>
-      </div>
     </div>
   );
 }

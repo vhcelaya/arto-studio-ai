@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const VERTICALS = [
@@ -22,32 +23,53 @@ export default function HomePage() {
     <div className="mx-auto max-w-6xl px-6">
       {/* HERO */}
       <section className="py-16 sm:py-24">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-neutral-400">
-          By ARTO Group — 15+ years with Google, Nike, Uber
-        </p>
-        <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-          Your creative studio,
-          <br />
-          powered by AI.
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg text-neutral-600">
-          3,000 production-grade prompts in English and Spanish. Brand
-          positioning skills. Autonomous creative agents. Built on 15+ years of
-          real agency methodology.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/roast"
-            className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
-          >
-            Try Brand Roast — Free
-          </Link>
-          <Link
-            href="/pricing"
-            className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
-          >
-            See pricing
-          </Link>
+        <div className="flex flex-col items-start gap-10 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+              By ARTO Group — 15+ years with Google, Nike, Uber
+            </p>
+            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              The marketing agency
+              <br />
+              <span className="text-neutral-400">that never sleeps.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-lg text-neutral-600">
+              Access ARTO&apos;s real methodology — strategy, creativity,
+              narrative, and production — through prompts, AI tools, and
+              autonomous agents. 3,000 prompts, brand positioning skills, and
+              creative agents, built on 15+ years with Fortune 500 brands.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/roast"
+                className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
+              >
+                Try Brand Roast — Free
+              </Link>
+              <Link
+                href="/pricing"
+                className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
+              >
+                See pricing
+              </Link>
+              <Link
+                href="/work"
+                className="rounded-md px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:text-neutral-900"
+              >
+                See our work →
+              </Link>
+            </div>
+          </div>
+          <div className="hidden md:block">
+            <Image
+              src="/brand/arto-character-01.png"
+              alt="ARTO"
+              width={280}
+              height={280}
+              priority
+              className="h-auto w-[260px] lg:w-[300px]"
+            />
+          </div>
         </div>
       </section>
 
