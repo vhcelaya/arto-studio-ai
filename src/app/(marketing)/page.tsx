@@ -1,24 +1,34 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getFeaturedPrompts } from "@/lib/supabase/queries";
+import { CATEGORY_STYLES, type Prompt } from "@/types/prompt";
 
+/* Each vertical maps to the catalog filter on /prompts. The code stays as
+   the display label, category is the DB enum used in the query. */
 const VERTICALS = [
-  { code: "BR", name: "Branding", count: 250 },
-  { code: "DG", name: "Graphic Design", count: 250 },
-  { code: "CW", name: "Copywriting", count: 250 },
-  { code: "FT", name: "Photography", count: 250 },
-  { code: "VD", name: "Video", count: 250 },
-  { code: "UX", name: "UX / UI", count: 250 },
-  { code: "IL", name: "Illustration", count: 250 },
-  { code: "MK", name: "Marketing", count: 250 },
-  { code: "MU", name: "Music", count: 250 },
-  { code: "AR", name: "Architecture", count: 250 },
-  { code: "FA", name: "Fashion", count: 250 },
-  { code: "CP", name: "Creative Productivity", count: 250 },
+  { code: "BR", name: "Branding", count: 250, category: "branding" },
+  { code: "DG", name: "Graphic Design", count: 250, category: "graphic_design" },
+  { code: "CW", name: "Copywriting", count: 250, category: "copywriting" },
+  { code: "FT", name: "Photography", count: 250, category: "photography" },
+  { code: "VD", name: "Video", count: 250, category: "video" },
+  { code: "UX", name: "UX / UI", count: 250, category: "ux_ui" },
+  { code: "IL", name: "Illustration", count: 250, category: "illustration" },
+  { code: "MK", name: "Marketing", count: 250, category: "marketing" },
+  { code: "MU", name: "Music", count: 250, category: "music" },
+  { code: "AR", name: "Architecture", count: 250, category: "architecture" },
+  { code: "FA", name: "Fashion", count: 250, category: "fashion" },
+  { code: "CP", name: "Creative Productivity", count: 250, category: "creative_productivity" },
 ];
 
-const LIBRARY_HREF = "https://library.artostudio.ai/prompts";
+export default async function HomePage() {
+  // Featured prompts from Supabase (graceful fallback to empty if env missing or DB hiccup)
+  let featured: Prompt[] = [];
+  try {
+    featured = await getFeaturedPrompts(6);
+  } catch {
+    featured = [];
+  }
 
-export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-6">
       {/* HERO */}
@@ -99,14 +109,12 @@ export default function HomePage() {
               <li>Collections, favorites, smart search</li>
               <li>Free tier with ~730 prompts</li>
             </ul>
-            <a
-              href={LIBRARY_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/prompts"
               className="mt-5 block rounded-md bg-neutral-900 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-neutral-700"
             >
               Browse catalog
-            </a>
+            </Link>
           </div>
 
           <div className="rounded-xl border border-neutral-200 bg-white p-6">
@@ -231,16 +239,54 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* FEATURED PROMPTS — live from Supabase */}
+      {featured.length > 0 && (
+        <section className="border-t border-neutral-200 py-16">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              <span className="mr-1">✨</span> Editor&apos;s Pick
+            </h2>
+            <Link href="/prompts" className="text-sm text-neutral-500 hover:text-neutral-900">
+              See all 3,000 →
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((p) => {
+              const style = CATEGORY_STYLES[p.category];
+              const catLabel = p.category.replace(/_/g, " ");
+              return (
+                <Link
+                  key={p.id}
+                  href={`/prompts/${p.id}`}
+                  className="rounded-lg border border-neutral-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] text-neutral-400">{p.id}</span>
+                    {style && (
+                      <span className={`rounded-full ${style.chip} px-2 py-0.5 text-[10px] font-medium capitalize`}>
+                        {catLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm font-semibold text-neutral-900">
+                    {p.title_en}
+                  </p>
+                  <p className="mt-1 line-clamp-1 text-xs text-neutral-500">{p.title_es}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* VERTICALS GRID */}
       <section className="border-t border-neutral-200 py-16">
         <h2 className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl">12 creative verticals</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {VERTICALS.map((v) => (
-            <a
+            <Link
               key={v.code}
-              href={`${LIBRARY_HREF}?vertical=${v.code}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/prompts?category=${v.category}`}
               className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 transition hover:border-neutral-400 hover:shadow-sm"
             >
               <div>
@@ -248,7 +294,7 @@ export default function HomePage() {
                 <p className="text-sm font-medium text-neutral-900">{v.name}</p>
               </div>
               <p className="text-xs text-neutral-400">{v.count}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </section>

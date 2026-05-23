@@ -78,7 +78,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             {prompt.ai_model}
           </div>
           <div style={{ marginLeft: "auto", fontSize: 18, color: "#a3a3a3" }}>
-            library.artostudio.ai
+            arto-studio-ai.vercel.app
           </div>
         </div>
       </div>
