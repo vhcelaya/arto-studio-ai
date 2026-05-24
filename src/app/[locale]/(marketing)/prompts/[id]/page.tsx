@@ -19,21 +19,23 @@ import {
   DIFFICULTY_LABEL_ES,
   VERTICAL_LABEL_ES,
 } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/i18n/config";
 import CopyButton from "./CopyButton";
 import AddToCollectionButton from "./AddToCollectionButton";
 import FavoriteButton from "./FavoriteButton";
 
 interface Props {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ lang?: "en" | "es" }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 const TIER_RANK: Record<string, number> = { free: 0, pro: 1, enterprise: 2 };
 
-export default async function PromptDetail({ params, searchParams }: Props) {
-  const { id } = await params;
-  const { lang: rawLang } = await searchParams;
-  const lang: Lang = rawLang === "es" ? "es" : "en";
+export default async function PromptDetail({ params }: Props) {
+  const { locale: localeParam, id } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  // Bridge the old Lang alias to the unified Locale (structurally identical).
+  const lang: Lang = locale;
   const dict = t(lang);
 
   const prompt = await getPrompt(id);
@@ -77,7 +79,7 @@ export default async function PromptDetail({ params, searchParams }: Props) {
 
   return (
     <article className="mx-auto max-w-3xl px-6 py-12">
-      <Link href={{ pathname: "/prompts", query: { lang } }} className="text-sm text-neutral-500 hover:text-neutral-900">
+      <Link href={`/${locale}/prompts`} className="text-sm text-neutral-500 hover:text-neutral-900">
         {dict.back_to_catalog}
       </Link>
 
@@ -97,10 +99,8 @@ export default async function PromptDetail({ params, searchParams }: Props) {
               </span>
             </div>
             <p className="mt-3 text-xs text-neutral-500">{humanize(prompt.subcategory)}</p>
-            <div className="mt-3 flex gap-3 text-sm">
-              <Link href={{ pathname: `/prompts/${prompt.id}`, query: { lang: "en" } }} className={lang === "en" ? "font-semibold underline" : "text-neutral-500 hover:underline"}>EN</Link>
-              <Link href={{ pathname: `/prompts/${prompt.id}`, query: { lang: "es" } }} className={lang === "es" ? "font-semibold underline" : "text-neutral-500 hover:underline"}>ES</Link>
-            </div>
+            {/* Inline EN/ES switcher removed — the global LangSwitcher in the
+              * Nav handles locale toggling for the whole site. */}
           </div>
           <FavoriteButton
             promptId={prompt.id}
@@ -136,7 +136,7 @@ export default async function PromptDetail({ params, searchParams }: Props) {
                 <p className="mt-1 text-xs text-neutral-500">
                   {user ? dict.upgrade_to_unlock : dict.sign_in_to_unlock}
                 </p>
-                <Link href="/pricing" className="mt-3 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
+                <Link href={`/${locale}/pricing`} className="mt-3 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
                   {dict.see_pricing}
                 </Link>
               </div>
