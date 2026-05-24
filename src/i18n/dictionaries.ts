@@ -343,6 +343,30 @@ export const DICTIONARIES = {
       meta_description:
         "A decade of branding, strategy, and digital experiences. The work that powers ARTO Studio AI.",
     },
+    learn: {
+      eyebrow: "Learn",
+      h1: "Guides by vertical",
+      sub: "Twelve guides, one per creative vertical. Each is a short overview of what AI can do in that domain in 2026, plus where to find the matching prompts in the ARTO catalog.",
+      card_eyebrow: "Vertical",
+      read_guide: "Read guide →",
+      cta_h2: "Ready to use these prompts?",
+      cta_body: "The 3,000-prompt catalog is live. Browse free or unlock the full library for $9/mo.",
+      cta_browse: "Browse the catalog",
+      cta_pricing: "See pricing",
+      meta_title: "Learn — AI Prompts by Vertical | ARTO Studio AI",
+      meta_description:
+        "Twelve guides to the 3,000 AI prompts in ARTO Studio AI Prompt Library, organized by creative vertical: branding, design, copywriting, video, music, and more.",
+      back_link: "← All guides",
+      use_cases_h2: "Common use cases",
+      catalog_eyebrow: "Catalog",
+      catalog_h2: "250 prompts in this vertical",
+      catalog_body:
+        "Each one is production-grade, bilingual (EN / ES), with a tested workflow. Browse the catalog for the full list or unlock the Pro tier for unlimited access.",
+      catalog_browse_prefix: "Browse",
+      catalog_browse_suffix: "prompts →",
+      related_h2: "Related",
+      related_body: "More vertical guides:",
+    },
   },
   es: {
     nav: {
@@ -673,6 +697,30 @@ export const DICTIONARIES = {
       meta_title: "Trabajo — ARTO Studio AI",
       meta_description:
         "Una década de branding, estrategia y experiencias digitales. El trabajo que potencia ARTO Studio AI.",
+    },
+    learn: {
+      eyebrow: "Aprende",
+      h1: "Guías por vertical",
+      sub: "Doce guías, una por cada vertical creativa. Cada una es un panorama corto de lo que la IA puede hacer en ese dominio en 2026, más dónde encontrar los prompts en el catálogo de ARTO.",
+      card_eyebrow: "Vertical",
+      read_guide: "Leer guía →",
+      cta_h2: "¿Listo para usar estos prompts?",
+      cta_body: "El catálogo de 3,000 prompts está activo. Explora gratis o desbloquea la biblioteca completa por $9/mes.",
+      cta_browse: "Ver el catálogo",
+      cta_pricing: "Ver precios",
+      meta_title: "Aprende — Prompts de IA por Vertical | ARTO Studio AI",
+      meta_description:
+        "Doce guías de los 3,000 prompts de IA en la Biblioteca ARTO Studio AI, organizadas por vertical creativa: branding, diseño, copywriting, video, música y más.",
+      back_link: "← Todas las guías",
+      use_cases_h2: "Casos de uso comunes",
+      catalog_eyebrow: "Catálogo",
+      catalog_h2: "250 prompts en esta vertical",
+      catalog_body:
+        "Cada uno es de calidad de producción, bilingüe (EN / ES), con un flujo probado. Explora el catálogo completo o desbloquea el tier Pro para acceso ilimitado.",
+      catalog_browse_prefix: "Ver prompts de",
+      catalog_browse_suffix: "→",
+      related_h2: "Relacionado",
+      related_body: "Más guías por vertical:",
     },
   },
 };
