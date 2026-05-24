@@ -47,7 +47,11 @@ function similarityColor(sim: number | null): string {
 }
 
 export default function GapsPage() {
-  const [apiKey, setApiKey] = useState("");
+  // apiKey is a vestige of the old Bearer-token auth — kept as a
+  // const so existing fetch(... { headers: authHeaders(apiKey) }) calls
+  // type-check. The layout now session-gates, and authHeaders() returns
+  // an empty object so the value is ignored at runtime.
+  const apiKey = "session";
   const [stats, setStats] = useState<GapsStats | null>(null);
   const [gaps, setGaps] = useState<ContentGap[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,13 +60,7 @@ export default function GapsPage() {
   const [filterStatus, setFilterStatus] = useState<string>("open");
   const [filterVertical, setFilterVertical] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("arto_admin_key");
-    if (saved) setApiKey(saved);
-  }, []);
-
   const fetchData = useCallback(async () => {
-    if (!apiKey) return;
     setLoading(true);
     setError("");
     try {

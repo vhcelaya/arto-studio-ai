@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "dotenv";
 import path from "path";
-import { isAdminAuthorized } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/auth";
 import { getSignals, getSignalsStats, resolveSignal } from "@/lib/engine-store";
 
 config({
@@ -22,7 +22,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthorized(request)) {
+  if (!(await requireAdminSession(request)).ok) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401, headers: corsHeaders }
@@ -70,7 +70,7 @@ interface ResolveBody {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAdminAuthorized(request)) {
+  if (!(await requireAdminSession(request)).ok) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401, headers: corsHeaders }

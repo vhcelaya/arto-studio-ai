@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "dotenv";
 import path from "path";
-import { isAdminAuthorized } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/auth";
 import {
   createClient,
   listClients,
@@ -25,7 +25,7 @@ function unauthorized() {
 /* ── GET /api/admin/clients ─ list all clients ─────────── */
 
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthorized(request)) return unauthorized();
+  if (!(await requireAdminSession(request)).ok) return unauthorized();
 
   const clients = await listClients();
   return NextResponse.json({ clients });
@@ -44,7 +44,7 @@ interface CreateBody {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAdminAuthorized(request)) return unauthorized();
+  if (!(await requireAdminSession(request)).ok) return unauthorized();
 
   let body: CreateBody;
   try {
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 /* ── PATCH /api/admin/clients?id=... ─ update a client ── */
 
 export async function PATCH(request: NextRequest) {
-  if (!isAdminAuthorized(request)) return unauthorized();
+  if (!(await requireAdminSession(request)).ok) return unauthorized();
 
   const id = request.nextUrl.searchParams.get("id");
   if (!id) {
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest) {
 /* ── DELETE /api/admin/clients?id=... ─ revoke (soft) ── */
 
 export async function DELETE(request: NextRequest) {
-  if (!isAdminAuthorized(request)) return unauthorized();
+  if (!(await requireAdminSession(request)).ok) return unauthorized();
 
   const id = request.nextUrl.searchParams.get("id");
   if (!id) {

@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const { isAdminAuthorized } = await import("@/lib/auth");
-  if (!isAdminAuthorized(request)) {
+  const { requireAdminSession } = await import("@/lib/auth");
+  if (!(await requireAdminSession(request)).ok) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401, headers: corsHeaders }

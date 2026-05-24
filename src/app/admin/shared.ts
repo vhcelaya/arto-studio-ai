@@ -24,8 +24,11 @@ export function formatDate(iso: string): string {
   });
 }
 
-export function authHeaders(apiKey: string): HeadersInit {
-  return { Authorization: `Bearer ${apiKey}` };
+export function authHeaders(_apiKey?: string): HeadersInit {
+  // Session-based admin auth: the browser sends Supabase cookies on
+  // same-origin fetches, so no Authorization header is needed. Kept as a
+  // function to avoid touching every tab callsite.
+  return {};
 }
 
 export function tierColor(tier: string): string {
