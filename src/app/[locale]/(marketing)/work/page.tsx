@@ -1,7 +1,28 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { isLocale, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
 
-// Portfolio data from ARTO Portafolio 2026 (Notion)
-// This will eventually be fetched from Notion API at build time
+interface PageProps {
+  params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  const locale: Locale = isLocale(localeParam) ? localeParam : "en";
+  const dict = getDictionary(locale).work;
+  return {
+    title: dict.meta_title,
+    description: dict.meta_description,
+  };
+}
+
+// Portfolio data from ARTO Portafolio 2026 (Notion).
+// This will eventually be fetched from Notion API at build time. Project
+// names, client names, and one-paragraph project descriptions stay in
+// their original language — they're brand-tied content, and the chrome
+// (headings, stats labels, CTA) is the part the visitor reads first.
 const projects = [
   {
     slug: "grupo-proeza-2025",
@@ -506,22 +527,23 @@ const allYears = [...new Set(projects.map((p) => p.year))]
   .sort()
   .reverse();
 
-export default function WorkPage() {
+export default async function WorkPage({ params }: PageProps) {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  const t = getDictionary(locale).work;
+  const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
+
   return (
     <>
       {/* Header */}
       <section className="border-b border-zinc-200">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-400">
-            Portfolio
+            {t.eyebrow}
           </p>
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-            Our work speaks.
-          </h1>
-          <p className="mt-4 max-w-xl text-lg text-zinc-500">
-            A decade of branding, strategy, and digital experiences for clients
-            across industries and continents. This is what powers ARTO Studio AI.
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">{t.h1}</h1>
+          <p className="mt-4 max-w-xl text-lg text-zinc-500">{t.sub}</p>
           <div className="mt-6 flex flex-wrap gap-2">
             {allYears.map((year) => (
               <span
@@ -541,13 +563,13 @@ export default function WorkPage() {
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
             <div>
               <p className="text-3xl font-bold">{projects.length}+</p>
-              <p className="mt-1 text-sm text-zinc-500">Projects delivered</p>
+              <p className="mt-1 text-sm text-zinc-500">{t.stat_projects}</p>
             </div>
             <div>
               <p className="text-3xl font-bold">
                 {new Set(projects.map((p) => p.client)).size}+
               </p>
-              <p className="mt-1 text-sm text-zinc-500">Clients served</p>
+              <p className="mt-1 text-sm text-zinc-500">{t.stat_clients}</p>
             </div>
             <div>
               <p className="text-3xl font-bold">
@@ -555,13 +577,13 @@ export default function WorkPage() {
                   ? `${allYears[allYears.length - 1]}–${allYears[0]}`
                   : allYears[0]}
               </p>
-              <p className="mt-1 text-sm text-zinc-500">Years of work</p>
+              <p className="mt-1 text-sm text-zinc-500">{t.stat_years}</p>
             </div>
             <div>
               <p className="text-3xl font-bold">
                 {new Set(projects.map((p) => p.industry)).size}
               </p>
-              <p className="mt-1 text-sm text-zinc-500">Industries</p>
+              <p className="mt-1 text-sm text-zinc-500">{t.stat_industries}</p>
             </div>
           </div>
         </div>
@@ -630,18 +652,13 @@ export default function WorkPage() {
       {/* CTA */}
       <section className="border-t border-zinc-200 bg-zinc-900 text-white">
         <div className="mx-auto max-w-6xl px-6 py-16 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">
-            This knowledge powers ARTO Studio AI.
-          </h2>
-          <p className="mt-4 text-lg text-zinc-400">
-            Every project above trained our AI on real strategy, real creativity,
-            and real results. Now it&apos;s your turn.
-          </p>
+          <h2 className="text-3xl font-bold tracking-tight">{t.cta_h2}</h2>
+          <p className="mt-4 text-lg text-zinc-400">{t.cta_body}</p>
           <Link
-            href="/pricing"
+            href={lp("/pricing")}
             className="mt-8 inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-100"
           >
-            Start your free trial
+            {t.cta_button}
           </Link>
         </div>
       </section>
