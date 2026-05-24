@@ -56,7 +56,11 @@ function severityColor(sev: string): string {
 }
 
 export default function SignalsPage() {
-  const [apiKey, setApiKey] = useState("");
+  // apiKey is a vestige of the old Bearer-token auth — kept as a
+  // const so existing fetch(... { headers: authHeaders(apiKey) }) calls
+  // type-check. The layout now session-gates, and authHeaders() returns
+  // an empty object so the value is ignored at runtime.
+  const apiKey = "session";
   const [stats, setStats] = useState<SignalsStats | null>(null);
   const [signals, setSignals] = useState<EngineSignal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,13 +72,7 @@ export default function SignalsPage() {
   const [filterSeverity, setFilterSeverity] = useState("");
   const [filterType, setFilterType] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("arto_admin_key");
-    if (saved) setApiKey(saved);
-  }, []);
-
   const fetchData = useCallback(async () => {
-    if (!apiKey) return;
     setLoading(true);
     setError("");
     try {
@@ -117,7 +115,6 @@ export default function SignalsPage() {
   }, [fetchData]);
 
   async function handleResolve(id: string) {
-    if (!apiKey) return;
     setResolving(id);
     try {
       const res = await fetch("/api/admin/engine/signals", {

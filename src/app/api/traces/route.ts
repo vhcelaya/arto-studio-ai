@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { config } from "dotenv";
 import path from "path";
 import { getTraces, getTraceStats } from "@/lib/trace-store";
-import { isAdminAuthorized } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/auth";
 
 // Load .env.local explicitly (workaround for Next.js 16 Turbopack env loading)
 config({
@@ -24,7 +24,7 @@ export async function OPTIONS() {
 
 export async function GET(request: NextRequest) {
   // Admin-only endpoint
-  if (!isAdminAuthorized(request)) {
+  if (!(await requireAdminSession(request)).ok) {
     return NextResponse.json(
       { error: "Unauthorized. Provide a valid Bearer token in the Authorization header." },
       { status: 401, headers: corsHeaders }

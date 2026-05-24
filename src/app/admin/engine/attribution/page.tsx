@@ -63,7 +63,11 @@ function formatUsd(usd: number): string {
 }
 
 export default function AttributionPage() {
-  const [apiKey, setApiKey] = useState("");
+  // apiKey is a vestige of the old Bearer-token auth — kept as a
+  // const so existing fetch(... { headers: authHeaders(apiKey) }) calls
+  // type-check. The layout now session-gates, and authHeaders() returns
+  // an empty object so the value is ignored at runtime.
+  const apiKey = "session";
   const [stats, setStats] = useState<AttributionStats | null>(null);
   const [events, setEvents] = useState<AttributionEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,13 +77,7 @@ export default function AttributionPage() {
   const [filterEventType, setFilterEventType] = useState("");
   const [filterSource, setFilterSource] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("arto_admin_key");
-    if (saved) setApiKey(saved);
-  }, []);
-
   const fetchData = useCallback(async () => {
-    if (!apiKey) return;
     setLoading(true);
     setError("");
     try {
