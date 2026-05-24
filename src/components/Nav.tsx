@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import LangSwitcher from "@/components/LangSwitcher";
+import type { Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 /* Unified ARTO Studio AI Navigation. Products dropdown shows the 4-product
-   structure. Auth-aware: server passes the user prop so the right-side
-   button is "Sign in" (anon) or initials → /account (signed in). */
-
-const LIBRARY_HREF = "/prompts";
+ * structure. Auth-aware: server passes the user prop so the right-side
+ * button is "Sign in" (anon) or initials → /account (signed in).
+ *
+ * Locale-aware: every internal link is prefixed with /<locale>. The
+ * marketing layout passes the active locale + dictionary slice (nav) so we
+ * never have to thread strings through manually. The LangSwitcher
+ * component handles toggling between locales. */
 
 interface NavUser {
   email?: string | null;
@@ -15,6 +21,8 @@ interface NavUser {
 
 interface Props {
   user: NavUser | null;
+  locale: Locale;
+  nav: Dictionary["nav"];
 }
 
 function initialsOf(email?: string | null): string {
@@ -26,17 +34,21 @@ function initialsOf(email?: string | null): string {
   return local.slice(0, 2).toUpperCase();
 }
 
-export default function Nav({ user }: Props) {
+export default function Nav({ user, locale, nav }: Props) {
   const [productsOpen, setProductsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const signedIn = Boolean(user);
+  const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
+  const LIBRARY_HREF = lp("/prompts");
+  // /roast lives outside [locale] so we link to it directly.
+  const ROAST_HREF = "/roast";
 
   return (
     <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-      <Link href="/" className="flex items-baseline gap-2">
+      <Link href={lp("/")} className="flex items-baseline gap-2">
         <img src="/brand/arto-logo-black.png" alt="ARTO Creative 24/7" className="h-6 w-auto" />
         <span className="hidden text-sm font-medium tracking-tight text-neutral-500 sm:inline">
-          Creative 24/7
+          {nav.tagline}
         </span>
       </Link>
 
@@ -50,7 +62,7 @@ export default function Nav({ user }: Props) {
             className="flex items-center gap-1 text-neutral-700 hover:text-neutral-900"
             onClick={() => setProductsOpen(!productsOpen)}
           >
-            Products
+            {nav.products}
             <svg
               className={`h-3 w-3 transition ${productsOpen ? "rotate-180" : ""}`}
               fill="none"
@@ -70,94 +82,87 @@ export default function Nav({ user }: Props) {
                 onClick={() => setProductsOpen(false)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-neutral-900">Prompt Library</span>
+                  <span className="font-semibold text-neutral-900">{nav.prompt_library}</span>
                   <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
-                    Live
+                    {nav.badge_live}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  3,000 bilingual prompts across 12 creative verticals
-                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">{nav.prompt_library_blurb}</p>
               </Link>
               <Link
-                href="/skills"
+                href={lp("/skills")}
                 className="block rounded-md px-3 py-2.5 hover:bg-neutral-50"
                 onClick={() => setProductsOpen(false)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-neutral-900">Skills Studio</span>
+                  <span className="font-semibold text-neutral-900">{nav.skills_studio}</span>
                   <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                    Soon
+                    {nav.badge_soon}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  AI-powered brand positioning, architecture, and creative tools
-                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">{nav.skills_studio_blurb}</p>
               </Link>
               <Link
-                href="/agents"
+                href={lp("/agents")}
                 className="block rounded-md px-3 py-2.5 hover:bg-neutral-50"
                 onClick={() => setProductsOpen(false)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-neutral-900">AI Agents</span>
+                  <span className="font-semibold text-neutral-900">{nav.ai_agents}</span>
                   <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                    Soon
+                    {nav.badge_soon}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  Autonomous creative workflows that run on your behalf
-                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">{nav.ai_agents_blurb}</p>
               </Link>
               <div className="mt-1 border-t border-neutral-100 pt-1">
                 <Link
-                  href="/roast"
+                  href={ROAST_HREF}
                   className="block rounded-md px-3 py-2.5 hover:bg-neutral-50"
                   onClick={() => setProductsOpen(false)}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-neutral-900">Brand Roast</span>
+                    <span className="font-semibold text-neutral-900">{nav.brand_roast}</span>
                     <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
-                      Free
+                      {nav.badge_free}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-neutral-500">
-                    Get an honest analysis of your brand. No signup required.
-                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-500">{nav.brand_roast_blurb}</p>
                 </Link>
               </div>
             </div>
           )}
         </div>
 
-        <Link href="/work" className="text-neutral-700 hover:text-neutral-900">
-          Work
+        <Link href={lp("/work")} className="text-neutral-700 hover:text-neutral-900">
+          {nav.work}
         </Link>
-        <Link href="/pricing" className="text-neutral-700 hover:text-neutral-900">
-          Pricing
+        <Link href={lp("/pricing")} className="text-neutral-700 hover:text-neutral-900">
+          {nav.pricing}
         </Link>
+        <LangSwitcher current={locale} />
         {signedIn ? (
           <Link
-            href="/account"
+            href={lp("/account")}
             className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-neutral-700 transition hover:border-neutral-400"
             title={user?.email || undefined}
           >
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
               {initialsOf(user?.email)}
             </span>
-            <span className="text-xs">Account</span>
+            <span className="text-xs">{nav.account}</span>
           </Link>
         ) : (
           <Link
-            href="/login"
+            href={lp("/login")}
             className="rounded-md bg-neutral-900 px-3 py-1.5 text-white transition hover:bg-neutral-700"
           >
-            Sign in
+            {nav.sign_in}
           </Link>
         )}
       </div>
 
-      <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
+      <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label={nav.menu}>
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           {mobileOpen ? (
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -170,72 +175,74 @@ export default function Nav({ user }: Props) {
       {mobileOpen && (
         <div className="absolute left-0 right-0 top-full z-50 border-b border-neutral-200 bg-white px-6 py-4 md:hidden">
           <div className="flex flex-col gap-3 text-sm">
-            <p className="text-xs font-semibold uppercase text-neutral-400">Products</p>
+            <p className="text-xs font-semibold uppercase text-neutral-400">{nav.products}</p>
             <Link
               href={LIBRARY_HREF}
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-neutral-700"
             >
-              Prompt Library
+              {nav.prompt_library}
               <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
-                Live
+                {nav.badge_live}
               </span>
             </Link>
             <Link
-              href="/skills"
+              href={lp("/skills")}
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-neutral-700"
             >
-              Skills Studio
+              {nav.skills_studio}
               <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                Soon
+                {nav.badge_soon}
               </span>
             </Link>
             <Link
-              href="/agents"
+              href={lp("/agents")}
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-neutral-700"
             >
-              AI Agents
+              {nav.ai_agents}
               <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                Soon
+                {nav.badge_soon}
               </span>
             </Link>
             <Link
-              href="/roast"
+              href={ROAST_HREF}
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-neutral-700"
             >
-              Brand Roast
+              {nav.brand_roast}
               <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-800">
-                Free
+                {nav.badge_free}
               </span>
             </Link>
             <div className="my-1 border-t border-neutral-100" />
-            <Link href="/work" onClick={() => setMobileOpen(false)} className="text-neutral-700">
-              Work
+            <Link href={lp("/work")} onClick={() => setMobileOpen(false)} className="text-neutral-700">
+              {nav.work}
             </Link>
-            <Link href="/pricing" onClick={() => setMobileOpen(false)} className="text-neutral-700">
-              Pricing
+            <Link href={lp("/pricing")} onClick={() => setMobileOpen(false)} className="text-neutral-700">
+              {nav.pricing}
             </Link>
+            <div className="my-1 border-t border-neutral-100" />
+            <LangSwitcher current={locale} />
             {signedIn ? (
               <Link
-                href="/account"
+                href={lp("/account")}
                 onClick={() => setMobileOpen(false)}
                 className="mt-1 flex items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-2 text-center text-neutral-700"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
                   {initialsOf(user?.email)}
                 </span>
-                <span>Account</span>
+                <span>{nav.account}</span>
               </Link>
             ) : (
               <Link
-                href="/login"
+                href={lp("/login")}
                 onClick={() => setMobileOpen(false)}
                 className="mt-1 rounded-md bg-neutral-900 px-3 py-2 text-center text-white"
               >
-                Sign in
+                {nav.sign_in}
               </Link>
             )}
           </div>
