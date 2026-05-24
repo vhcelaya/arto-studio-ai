@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/auth";
+import { isAdminEmailAsync } from "@/lib/auth";
 
 /* Minimal Account page for Phase B. Shows tier + email + sign-out.
    When /prompts, /collections, /favorites migrate (Phase C), expand here:
@@ -32,7 +32,7 @@ export default async function AccountPage() {
   const tierStyle = TIER_LABELS[tierKey] ?? TIER_LABELS.free;
   // Server-side admin check against ADMIN_EMAILS allowlist. Renders an
   // additional card linking to /admin if the visitor is on the list.
-  const isAdmin = isAdminEmail(user.email);
+  const isAdmin = await isAdminEmailAsync(user.email);
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
         year: "numeric",

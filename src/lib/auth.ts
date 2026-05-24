@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Verify admin access via Bearer token.
@@ -7,10 +8,6 @@ import { createClient } from "@/lib/supabase/server";
  * Kept for back-compat with external scripts, cron jobs, and any
  * integration that hits /api/admin/* without a browser session. The
  * token is set as ADMIN_API_KEY in environment variables.
- *
- * For UI flows (clicking around /admin in a browser) the preferred
- * check is requireAdminSession() below — session-only, no shared key
- * to leak.
  */
 export function isAdminAuthorized(request: NextRequest): boolean {
   const adminKey = process.env.ADMIN_API_KEY;
@@ -24,14 +21,16 @@ export function isAdminAuthorized(request: NextRequest): boolean {
 }
 
 /**
- * Check whether a Supabase-authenticated email is on the admin allowlist.
+ * Synchronous env-only admin check.
  *
- * ADMIN_EMAILS is a comma-separated list of lowercase email addresses set
- * as a Vercel env var (e.g. "vhcelaya@artogroup.com,other@arto.com").
- * Used by Server Components to decide whether the visitor can see and
- * use admin UI. The /admin pages and /api/admin/* routes both gate on
- * the result of requireAdminSession(), which composes Supabase auth +
- * this email check.
+ * ADMIN_EMAILS is a comma-separated list of lowercase email addresses
+ * set as a Vercel env var. These are the "bootstrap" admins — they
+ * always have access even if the DB is unreachable, and they cannot be
+ * removed from the /admin/admins UI. Use this when you're in a
+ * sync-only context (e.g. inside a tight render path that can't await).
+ *
+ * For most checks, prefer isAdminEmailAsync() which also consults the
+ * admin_users table.
  */
 export function isAdminEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -44,6 +43,35 @@ export function isAdminEmail(email?: string | null): boolean {
   return allowlist.includes(email.trim().toLowerCase());
 }
 
+/**
+ * Composite async admin check: ADMIN_EMAILS env var OR admin_users table.
+ *
+ * The env var is the bootstrap path — immutable from the UI, used so
+ * the platform owner can always log in even if the DB row gets deleted
+ * by accident. The admin_users table is the dynamic path — managed
+ * from /admin/admins.
+ *
+ * A user is admin if their email matches EITHER source.
+ */
+export async function isAdminEmailAsync(email?: string | null): Promise<boolean> {
+  if (!email) return false;
+  if (isAdminEmail(email)) return true;
+  // DB lookup. createAdminClient uses the service role key so we bypass
+  // RLS on admin_users.
+  try {
+    const sb = createAdminClient();
+    const { data } = await sb
+      .from("admin_users")
+      .select("id")
+      .ilike("email", email.trim())
+      .limit(1)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
 export type AdminAuthResult =
   | { ok: true; email: string; userId: string; via: "session" | "bearer" }
   | { ok: false; reason: "unauthenticated" | "not_admin" | "no_allowlist" };
@@ -51,18 +79,16 @@ export type AdminAuthResult =
 /**
  * Compose Supabase session + admin allowlist into a single gate.
  *
- * This is the canonical admin check for the app's server surface —
- * Server Components, route handlers, anywhere we can read cookies.
+ * This is the canonical admin check for the app's server surface.
  *
  * Resolution order:
- *   1. Supabase session present and user.email is on the allowlist
- *      → ok via "session"
- *   2. Authorization: Bearer <ADMIN_API_KEY> matches → ok via "bearer"
- *      (kept for cron/scripts/external callers; not used by UI)
- *   3. otherwise → not_admin / unauthenticated / no_allowlist (config bug)
+ *   1. Supabase session present and user.email is on ADMIN_EMAILS env
+ *      OR in admin_users table → ok via "session"
+ *   2. Authorization: Bearer ADMIN_API_KEY match → ok via "bearer"
+ *   3. otherwise → not_admin / unauthenticated / no_allowlist
  *
- * Always pass the NextRequest when calling from an API route so the
- * Bearer fallback works. Server Components can omit it.
+ * Always pass NextRequest from API routes so the Bearer fallback works.
+ * Server Components can omit it.
  */
 export async function requireAdminSession(
   request?: NextRequest,
@@ -73,11 +99,20 @@ export async function requireAdminSession(
       data: { user },
     } = await sb.auth.getUser();
     if (user?.email) {
-      if (!process.env.ADMIN_EMAILS) {
-        return { ok: false, reason: "no_allowlist" };
-      }
+      // Check env var first (cheap, no DB hit). If it matches, short-circuit.
+      // If not, fall through to the DB lookup.
       if (isAdminEmail(user.email)) {
         return { ok: true, email: user.email, userId: user.id, via: "session" };
+      }
+      if (await isAdminEmailAsync(user.email)) {
+        return { ok: true, email: user.email, userId: user.id, via: "session" };
+      }
+      // Signed in but not admin. The "no_allowlist" reason is reserved for
+      // a config error (env var blank AND DB empty). Once you've used the
+      // UI to add a single admin, the table is populated and we'd reach
+      // not_admin instead.
+      if (!process.env.ADMIN_EMAILS) {
+        return { ok: false, reason: "no_allowlist" };
       }
       return { ok: false, reason: "not_admin" };
     }
