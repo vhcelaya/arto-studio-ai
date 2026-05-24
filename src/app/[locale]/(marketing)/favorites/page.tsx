@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   AI_GROUPS,
@@ -16,19 +16,22 @@ import {
   VERTICAL_LABEL_ES,
   DIFFICULTY_LABEL_ES,
 } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/i18n/config";
 
 interface Props {
-  searchParams: Promise<{ lang?: "en" | "es" }>;
+  params: Promise<{ locale: string }>;
 }
 
-export default async function FavoritesPage({ searchParams }: Props) {
-  const sp = await searchParams;
-  const lang: Lang = sp.lang === "es" ? "es" : "en";
+export default async function FavoritesPage({ params }: Props) {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  const lang: Lang = locale;
   const dict = t(lang);
 
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) redirect(`/login?next=/favorites`);
+  if (!user) redirect(`/${locale}/login?next=/${locale}/favorites`);
 
   const { data: favs } = await sb
     .from("favorites")
@@ -47,7 +50,7 @@ export default async function FavoritesPage({ searchParams }: Props) {
           <h1 className="text-3xl font-semibold tracking-tight">{dict.favorites_title}</h1>
           <p className="mt-2 text-sm text-neutral-500">{dict.favorites_subtitle}</p>
         </div>
-        <Link href={{ pathname: "/account", query: { lang } }} className="text-sm text-neutral-500 hover:text-neutral-900">
+        <Link href={`/${locale}/account`} className="text-sm text-neutral-500 hover:text-neutral-900">
           ← {dict.nav_account}
         </Link>
       </div>
@@ -73,7 +76,7 @@ export default async function FavoritesPage({ searchParams }: Props) {
             return (
               <li key={p.id}>
                 <Link
-                  href={{ pathname: `/prompts/${p.id}`, query: { lang } }}
+                  href={`/${locale}/prompts/${p.id}`}
                   className="group relative block h-full overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between text-xs">

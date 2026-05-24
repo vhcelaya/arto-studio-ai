@@ -2,24 +2,25 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { type Lang } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/i18n/config";
 import { AI_GROUPS, CATEGORY_STYLES, DIFFICULTY_STYLES, TIER_STYLES, VERTICALS, aiGroupOf, type Prompt } from "@/types/prompt";
 import RemovePromptButton from "./RemovePromptButton";
 
 interface Props {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ lang?: "en" | "es" }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
-export default async function CollectionDetail({ params, searchParams }: Props) {
-  const { id } = await params;
-  const sp = await searchParams;
-  const lang: Lang = sp.lang === "es" ? "es" : "en";
+export default async function CollectionDetail({ params }: Props) {
+  const { locale: localeParam, id } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  const lang: Lang = locale;
 
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) redirect(`/login?next=/collections/${id}`);
+  if (!user) redirect(`/${locale}/login?next=/${locale}/collections/${id}`);
 
   const { data: collection } = await sb
     .from("collections")
@@ -59,7 +60,7 @@ export default async function CollectionDetail({ params, searchParams }: Props) 
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-12">
-      <Link href={{ pathname: "/collections", query: { lang } }} className="text-sm text-neutral-500 hover:text-neutral-900">
+      <Link href={`/${locale}/collections`} className="text-sm text-neutral-500 hover:text-neutral-900">
         {labels.back}
       </Link>
 
@@ -89,7 +90,7 @@ export default async function CollectionDetail({ params, searchParams }: Props) 
             return (
               <li key={p.id} className="relative">
                 <Link
-                  href={{ pathname: `/prompts/${p.id}`, query: { lang } }}
+                  href={`/${locale}/prompts/${p.id}`}
                   className="block h-full rounded-lg border border-neutral-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between text-xs">

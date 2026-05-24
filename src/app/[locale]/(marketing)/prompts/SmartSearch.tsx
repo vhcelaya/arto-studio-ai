@@ -167,7 +167,7 @@ export default function SmartSearch({ lang = "en" }: { lang?: Lang }) {
                 return (
                   <li key={p.id}>
                     <Link
-                      href={{ pathname: `/prompts/${p.id}`, query: { lang: result.lang } }}
+                      href={`/${result.lang}/prompts/${p.id}`}
                       className="block h-full rounded-lg border border-neutral-200 bg-white p-3 transition hover:border-neutral-400 hover:shadow-sm"
                     >
                       <div className="flex items-center justify-between text-xs">

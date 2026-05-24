@@ -1,22 +1,25 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { t, type Lang } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/i18n/config";
 import CreateCollectionForm from "./CreateCollectionForm";
 
 interface Props {
-  searchParams: Promise<{ lang?: "en" | "es" }>;
+  params: Promise<{ locale: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
-export default async function CollectionsPage({ searchParams }: Props) {
-  const sp = await searchParams;
-  const lang: Lang = sp.lang === "es" ? "es" : "en";
+export default async function CollectionsPage({ params }: Props) {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  const lang: Lang = locale;
 
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) redirect(`/login?next=/collections`);
+  if (!user) redirect(`/${locale}/login?next=/${locale}/collections`);
 
   const { data: collections } = await sb
     .from("collections")
@@ -64,7 +67,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
             return (
               <li key={c.id}>
                 <Link
-                  href={{ pathname: `/collections/${c.id}`, query: { lang } }}
+                  href={`/${locale}/collections/${c.id}`}
                   className="block h-full rounded-lg border border-neutral-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between">

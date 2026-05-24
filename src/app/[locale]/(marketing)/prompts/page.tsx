@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { listPrompts } from "@/lib/supabase/queries";
 import {
   AI_GROUPS,
@@ -19,6 +20,7 @@ import {
   DIFFICULTY_LABEL_ES,
   VERTICAL_LABEL_ES,
 } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/i18n/config";
 import SmartSearch from "./SmartSearch";
 
 const CATEGORIES: Category[] = [
@@ -34,14 +36,24 @@ interface SearchParams {
   tier?: string;
   group?: string;
   q?: string;
-  lang?: "en" | "es";
   page?: string;
 }
 
-export default async function CatalogPage(props: { searchParams: Promise<SearchParams> }) {
-  const sp = await props.searchParams;
-  const lang: Lang = sp.lang === "es" ? "es" : "en";
+interface Props {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<SearchParams>;
+}
+
+export default async function CatalogPage({ params, searchParams }: Props) {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  // Bridge: the catalog's older i18n module uses a Lang alias that is
+  // structurally identical to Locale. Pass it through.
+  const lang: Lang = locale;
   const dict = t(lang);
+
+  const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page || "1", 10));
 
   const { prompts, total, totalPages } = await listPrompts(
@@ -56,6 +68,8 @@ export default async function CatalogPage(props: { searchParams: Promise<SearchP
     page,
   );
 
+  // qs() preserves filter state across links. Locale lives in the path,
+  // not the query, so the language toggle moved to the Nav LangSwitcher.
   const qs = (overrides: Partial<SearchParams>) => {
     const merged = { ...sp, ...overrides };
     const params = new URLSearchParams();
@@ -72,25 +86,11 @@ export default async function CatalogPage(props: { searchParams: Promise<SearchP
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{dict.catalog}</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            {total.toLocaleString()} prompts · {dict.page_label(page, totalPages || 1)}
-          </p>
-        </div>
-        <div className="text-sm">
-          <span className="text-neutral-500">{dict.language}: </span>
-          <Link
-            href={qs({ lang: "en", page: "1" })}
-            className={lang === "en" ? "font-semibold underline" : "hover:underline"}
-          >EN</Link>
-          <span className="mx-2 text-neutral-300">·</span>
-          <Link
-            href={qs({ lang: "es", page: "1" })}
-            className={lang === "es" ? "font-semibold underline" : "hover:underline"}
-          >ES</Link>
-        </div>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">{dict.catalog}</h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          {total.toLocaleString()} prompts · {dict.page_label(page, totalPages || 1)}
+        </p>
       </div>
 
       <div className="mt-6"><SmartSearch lang={lang} /></div>
@@ -187,7 +187,7 @@ export default async function CatalogPage(props: { searchParams: Promise<SearchP
             return (
               <li key={p.id}>
                 <Link
-                  href={{ pathname: `/prompts/${p.id}`, query: { lang } }}
+                  href={`/${locale}/prompts/${p.id}`}
                   className="group relative block h-full overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
                 >
                   <div className="flex items-center justify-between text-xs">
