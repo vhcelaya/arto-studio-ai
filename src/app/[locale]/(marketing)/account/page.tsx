@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/auth";
 
 /* Minimal Account page for Phase B. Shows tier + email + sign-out.
    When /prompts, /collections, /favorites migrate (Phase C), expand here:
@@ -29,6 +30,9 @@ export default async function AccountPage() {
 
   const tierKey = (profile?.tier as string | undefined) ?? "free";
   const tierStyle = TIER_LABELS[tierKey] ?? TIER_LABELS.free;
+  // Server-side admin check against ADMIN_EMAILS allowlist. Renders an
+  // additional card linking to /admin if the visitor is on the list.
+  const isAdmin = isAdminEmail(user.email);
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
         year: "numeric",
@@ -91,6 +95,24 @@ export default async function AccountPage() {
           </p>
         </Link>
       </div>
+
+      {isAdmin && (
+        <div className="mt-6">
+          <Link
+            href="/admin"
+            className="block rounded-lg border border-amber-300 bg-amber-50 p-5 transition hover:border-amber-400"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-700">
+              Admin
+            </p>
+            <p className="mt-2 font-semibold text-amber-900">Admin panel</p>
+            <p className="mt-1 text-sm text-amber-800">
+              Roast traces, clients, skill traces, engine observability. Needs
+              the admin API key on entry.
+            </p>
+          </Link>
+        </div>
+      )}
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         {tierKey === "free" && (

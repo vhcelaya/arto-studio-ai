@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/auth";
 import { isLocale, DEFAULT_LOCALE, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -42,6 +43,10 @@ export default async function MarketingLayout({
     userEmail = null;
   }
 
+  // Admin status is derived from the ADMIN_EMAILS env-var allowlist.
+  // Server-side check so the link never even ships to non-admins.
+  const isAdmin = isAdminEmail(userEmail);
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/90 backdrop-blur-sm">
@@ -49,6 +54,7 @@ export default async function MarketingLayout({
           user={userEmail ? { email: userEmail } : null}
           locale={locale}
           nav={dict.nav}
+          isAdmin={isAdmin}
         />
       </header>
       <main className="flex-1">{children}</main>
