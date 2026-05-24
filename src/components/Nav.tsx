@@ -23,6 +23,10 @@ interface Props {
   user: NavUser | null;
   locale: Locale;
   nav: Dictionary["nav"];
+  /* Server-derived from ADMIN_EMAILS allowlist. Controls visibility of the
+   * "Admin" link in the auth area — the /admin page itself still has its
+   * own API-key gate, this is just to surface the entry point to admins. */
+  isAdmin?: boolean;
 }
 
 function initialsOf(email?: string | null): string {
@@ -34,7 +38,7 @@ function initialsOf(email?: string | null): string {
   return local.slice(0, 2).toUpperCase();
 }
 
-export default function Nav({ user, locale, nav }: Props) {
+export default function Nav({ user, locale, nav, isAdmin = false }: Props) {
   const [productsOpen, setProductsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const signedIn = Boolean(user);
@@ -163,6 +167,15 @@ export default function Nav({ user, locale, nav }: Props) {
           {nav.pricing}
         </Link>
         <LangSwitcher current={locale} />
+        {isAdmin && signedIn && (
+          <Link
+            href="/admin"
+            className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 transition hover:border-amber-400"
+            title="Admin panel"
+          >
+            Admin
+          </Link>
+        )}
         {signedIn ? (
           <Link
             href={lp("/account")}
@@ -247,6 +260,15 @@ export default function Nav({ user, locale, nav }: Props) {
             </Link>
             <div className="my-1 border-t border-neutral-100" />
             <LangSwitcher current={locale} />
+            {isAdmin && signedIn && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileOpen(false)}
+                className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800"
+              >
+                Admin
+              </Link>
+            )}
             {signedIn ? (
               <Link
                 href={lp("/account")}
