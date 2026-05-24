@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LangSwitcher from "@/components/LangSwitcher";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -43,6 +43,29 @@ export default function Nav({ user, locale, nav }: Props) {
   // /roast lives outside [locale] so we link to it directly.
   const ROAST_HREF = "/roast";
 
+  // Click-outside + Escape close for the Products dropdown. Hover was the
+  // original model but the 8px gap between trigger and menu sat outside
+  // the relative wrapper, so moving the mouse down to click an option
+  // fired onMouseLeave and closed the menu before the click landed.
+  const productsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!productsOpen) return;
+    function onClick(e: MouseEvent) {
+      if (productsRef.current && !productsRef.current.contains(e.target as Node)) {
+        setProductsOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setProductsOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [productsOpen]);
+
   return (
     <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
       <Link href={lp("/")} className="flex items-baseline gap-2">
@@ -53,14 +76,13 @@ export default function Nav({ user, locale, nav }: Props) {
       </Link>
 
       <div className="hidden items-center gap-6 text-sm md:flex">
-        <div
-          className="relative"
-          onMouseEnter={() => setProductsOpen(true)}
-          onMouseLeave={() => setProductsOpen(false)}
-        >
+        <div className="relative" ref={productsRef}>
           <button
+            type="button"
             className="flex items-center gap-1 text-neutral-700 hover:text-neutral-900"
             onClick={() => setProductsOpen(!productsOpen)}
+            aria-haspopup="menu"
+            aria-expanded={productsOpen}
           >
             {nav.products}
             <svg
