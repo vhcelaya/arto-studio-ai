@@ -1,72 +1,50 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import NewsletterForm from "@/components/NewsletterForm";
+import { isLocale, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
 
-export const metadata: Metadata = {
-  title: "Skills Studio — ARTO Studio AI",
-  description:
-    "AI-powered creative tools: brand positioning, architecture analysis, illustration licensing, and more. Coming soon.",
-};
+interface Props {
+  params: Promise<{ locale: string }>;
+}
 
-const SKILLS = [
-  {
-    name: "Brand Positioning",
-    desc: "Run ARTO's 5-phase positioning process with AI. Brief, Brand Essence, calibration scoring, anti-pattern detection.",
-    status: "In development",
-  },
-  {
-    name: "Brand Architecture",
-    desc: "Evaluate sub-brand structures. Company-first vs product-forward analysis with competitor mapping.",
-    status: "Planned",
-  },
-  {
-    name: "Illustration Licensing",
-    desc: "Creation and licensing as separate line items. Rate card calculator with market-by-market pricing.",
-    status: "Planned",
-  },
-  {
-    name: "Healthcare UI Dashboard",
-    desc: "Clinical modular UI patterns built on Preline/Tailwind. Data-dense layouts for health tech products.",
-    status: "Planned",
-  },
-  {
-    name: "Credit Retainer Calculator",
-    desc: "Token-based pricing model for retainers. Calculate credit allocation, burn rates, and client billing.",
-    status: "Planned",
-  },
-  {
-    name: "Mural Broker RFP",
-    desc: "Multi-provider RFQ for outdoor and mural projects. Compare quotes, manage production timelines.",
-    status: "Planned",
-  },
-];
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  const locale: Locale = isLocale(localeParam) ? localeParam : "en";
+  const dict = getDictionary(locale).skills;
+  return {
+    title: dict.meta_title,
+    description: dict.meta_description,
+  };
+}
 
-export default function SkillsPage() {
+export default async function SkillsPage({ params }: Props) {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) notFound();
+  const locale = localeParam as Locale;
+  const t = getDictionary(locale).skills;
+  const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
       <div className="mb-12">
         <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-          Coming soon
+          {t.badge}
         </span>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Skills Studio</h1>
-        <p className="mt-3 max-w-xl text-lg text-neutral-600">
-          AI-powered creative tools built on ARTO&apos;s real methodology. Each skill
-          encodes a specific workflow that took years to develop, now available
-          on demand.
-        </p>
-        <p className="mt-2 text-sm text-neutral-500">
-          Starting at $29/mo. Includes all Prompts Pro features.
-        </p>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{t.h1}</h1>
+        <p className="mt-3 max-w-xl text-lg text-neutral-600">{t.hero_body}</p>
+        <p className="mt-2 text-sm text-neutral-500">{t.hero_pricing}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {SKILLS.map((skill) => (
+        {t.list.map((skill) => (
           <div key={skill.name} className="rounded-lg border border-neutral-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <h3 className="font-bold">{skill.name}</h3>
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                  skill.status === "In development"
+                  skill.status === t.status_in_dev
                     ? "bg-blue-50 text-blue-700"
                     : "bg-neutral-100 text-neutral-500"
                 }`}
@@ -80,19 +58,16 @@ export default function SkillsPage() {
       </div>
 
       <div className="mt-12 rounded-xl border border-neutral-200 bg-white p-8 text-center">
-        <h2 className="text-xl font-bold">Get early access</h2>
-        <p className="mt-2 text-sm text-neutral-500">
-          Drop your email — we&apos;ll let you know the moment Skills Studio is
-          ready. Early subscribers get a launch discount.
-        </p>
+        <h2 className="text-xl font-bold">{t.newsletter_h2}</h2>
+        <p className="mt-2 text-sm text-neutral-500">{t.newsletter_body}</p>
         <div className="mx-auto mt-6 max-w-sm">
-          <NewsletterForm source="skills" cta="Notify me" />
+          <NewsletterForm source="skills" cta={t.newsletter_cta} />
         </div>
       </div>
 
       <div className="mt-8 text-center">
-        <Link href="/pricing" className="text-sm text-neutral-500 hover:text-neutral-700">
-          &larr; See all pricing plans
+        <Link href={lp("/pricing")} className="text-sm text-neutral-500 hover:text-neutral-700">
+          {t.back_link}
         </Link>
       </div>
     </div>
