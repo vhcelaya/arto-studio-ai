@@ -35,23 +35,73 @@ export default async function AdminHome() {
   ]);
 
   const seguimiento: Card[] = [
-    { href: "/admin/traces/roast", label: "Roast traces", desc: "Resultados de Brand Roast", badge: roastTraces },
-    { href: "/admin/traces/skills", label: "Skill traces", desc: "Llamadas a Skills Studio API", badge: skillTraces },
-    { href: "/admin/engine/runs", label: "Engine · Runs", desc: "Jobs y corridas del engine", badge: runs },
-    { href: "/admin/engine/signals", label: "Engine · Signals", desc: "Señales detectadas", badge: signals },
-    { href: "/admin/engine/attribution", label: "Engine · Attribution", desc: "Eventos de atribución" },
-    { href: "/admin/engine/social", label: "Engine · Social", desc: "Log de actividad social" },
-    { href: "/admin/engine/scraping", label: "Engine · Scraping", desc: "Targets y stats de scraping" },
+    {
+      href: "/admin/traces/roast",
+      label: "Roast traces",
+      desc: "Cada Brand Roast que se ha corrido en /roast, con su score por pilar (Strategy, Creativity, Narrative, Digital), los inputs de marca y el usuario que lo ejecutó. Útil para muestrear casos, validar la calidad de los análisis y debuggear quejas sobre un score específico.",
+      badge: roastTraces,
+    },
+    {
+      href: "/admin/traces/skills",
+      label: "Skill traces",
+      desc: "Llamadas al API de Skills Studio (Brand Positioning, Brand Architecture, etc.) por client_id. Muestra qué skill se invocó, cuándo, con qué inputs y tamaño de output. Sirve para tracking de uso por tier, facturación y para encontrar sesiones específicas a inspeccionar.",
+      badge: skillTraces,
+    },
+    {
+      href: "/admin/engine/runs",
+      label: "Engine · Runs",
+      desc: "Bitácora de cada corrida del engine de outbound — manual o programada. Status, duración, fuente, traza de error si falló. Úsalo para confirmar que el engine está vivo, ver qué corrida produjo qué señales, o diagnosticar un job que se rompió.",
+      badge: runs,
+    },
+    {
+      href: "/admin/engine/signals",
+      label: "Engine · Signals",
+      desc: "Señales de crecimiento detectadas por el engine durante el scraping: un competidor lanzó, un target cambió de rol, una empresa abrió ronda. Es la cola priorizada para outreach manual o contenido reactivo.",
+      badge: signals,
+    },
+    {
+      href: "/admin/engine/attribution",
+      label: "Engine · Attribution",
+      desc: "Cuándo una señal del engine derivó en una conversión real (deal cerrado, sign-up, demo). Liga signal_id → outcome. Sirve para mostrar ROI del engine y decidir qué fuentes de señal vale la pena seguir alimentando.",
+    },
+    {
+      href: "/admin/engine/social",
+      label: "Engine · Social",
+      desc: "Posts que el engine publicó (o agendó) en redes a tu nombre, con engagement, alcance y gasto en ads si aplicó. Úsalo para auditar qué salió, ajustar la cadencia y revertir lo que no funcionó.",
+    },
+    {
+      href: "/admin/engine/scraping",
+      label: "Engine · Scraping",
+      desc: "Targets que el engine está monitoreando — empresas, personas, sitios — con stats de cobertura: cuándo se scrapeó por última vez, cuántas señales generó, status actual. Aquí agregas un target nuevo, pausas uno ruidoso, o validas la cobertura.",
+    },
   ];
 
   const administrativas: Card[] = [
-    { href: "/admin/clients", label: "Clients", desc: "Alta, edición y status de clientes", badge: clients },
-    { href: "/admin/admins", label: "Administradores", desc: "Quién tiene acceso a este panel", badge: admins },
+    {
+      href: "/admin/clients",
+      label: "Clients",
+      desc: "Empresas con API key activo para Skills Studio. Crea, edita, cambia tier, suspende, o regenera la key. Cada renglón muestra uso del mes en curso y el plan al que están suscritas.",
+      badge: clients,
+    },
+    {
+      href: "/admin/admins",
+      label: "Administradores",
+      desc: "Quién puede entrar a este panel. Lista admins permanentes (env var, no se quitan desde aquí) y dinámicos (DB, los agregas con un email y los quitas con un click). El nuevo admin entra firmando con magic link.",
+      badge: admins,
+    },
   ];
 
   const desarrollo: Card[] = [
-    { href: "/admin/engine/gaps", label: "Engine · Gaps", desc: "Brechas de contenido detectadas" },
-    { href: "/admin/engine/config", label: "Engine · Config", desc: "Configuración del engine (read-only)" },
+    {
+      href: "/admin/engine/gaps",
+      label: "Engine · Gaps",
+      desc: "Brechas de contenido que el engine detectó: preguntas que se están haciendo en el mercado y que ARTO no responde con prompts, skills o /learn. Sirve de brief priorizado para producción de contenido.",
+    },
+    {
+      href: "/admin/engine/config",
+      label: "Engine · Config",
+      desc: "Vista de solo lectura de la configuración del engine: qué fuentes scrapea, con qué cadencia, qué umbrales aplican a cada señal. Para cambiar la config, edita la tabla engine_config en Supabase directamente.",
+    },
   ];
 
   const Section = ({ title, cards }: { title: string; cards: Card[] }) => (
@@ -64,7 +114,7 @@ export default async function AdminHome() {
           <Link
             key={card.href}
             href={card.href}
-            className="rounded-lg border border-zinc-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-zinc-400 hover:shadow-sm"
+            className="flex flex-col rounded-lg border border-zinc-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-zinc-400 hover:shadow-sm"
           >
             <div className="flex items-baseline justify-between gap-2">
               <p className="font-semibold text-zinc-900">{card.label}</p>
@@ -74,7 +124,7 @@ export default async function AdminHome() {
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-zinc-500">{card.desc}</p>
+            <p className="mt-2 text-[13px] leading-relaxed text-zinc-600">{card.desc}</p>
           </Link>
         ))}
       </div>
