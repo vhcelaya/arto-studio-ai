@@ -34,10 +34,15 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Administrativas",
+    title: "Outreach",
     items: [
       { href: "/admin/outreach", label: "Outreach" },
       { href: "/admin/content", label: "Content Factory" },
+    ],
+  },
+  {
+    title: "Administrativas",
+    items: [
       { href: "/admin/clients", label: "Clients" },
       { href: "/admin/admins", label: "Administradores" },
     ],

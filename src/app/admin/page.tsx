@@ -79,7 +79,7 @@ export default async function AdminHome() {
     },
   ];
 
-  const administrativas: Card[] = [
+  const outreach: Card[] = [
     {
       href: "/admin/outreach",
       label: "Outreach",
@@ -92,6 +92,9 @@ export default async function AdminHome() {
       desc: "Module 3 Phase 3a. Genera prompts nuevos para la biblioteca y posts editoriales para /learn vía Claude. Cada item cae en borrador, lo apruebas, y un publisher empuja a la tabla pública. Bulk approve + bulk publish. Imágenes + distribución multi-canal vienen en Phase 3b/3c.",
       badge: contentItems,
     },
+  ];
+
+  const administrativas: Card[] = [
     {
       href: "/admin/clients",
       label: "Clients",
@@ -156,6 +159,7 @@ export default async function AdminHome() {
       </header>
 
       <Section title="Seguimiento" cards={seguimiento} />
+      <Section title="Outreach" cards={outreach} />
       <Section title="Administrativas" cards={administrativas} />
       <Section title="Desarrollo" cards={desarrollo} />
     </div>
