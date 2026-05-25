@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ContentType = "prompt" | "blog_post" | "social_post" | "newsletter";
 type Status = "draft" | "approved" | "published" | "skipped";
@@ -36,6 +36,16 @@ const TYPE_LABEL: Record<ContentType, string> = {
   newsletter: "Newsletter",
 };
 
+/* Empirically Claude returns ~8-12s for 3 items, ~15-25s for 5, up to
+ * ~45s for 10. We surface a "usualmente tarda" leyenda based on the
+ * count the operator picked, plus a live elapsed counter so they don't
+ * assume the spinner is hung. */
+function expectedDurationLabel(count: number): string {
+  const min = Math.round(count * 3);
+  const max = Math.round(count * 6);
+  return `Usualmente tarda ${min}–${max}s para ${count} ítem${count === 1 ? "" : "s"}.`;
+}
+
 function previewTitle(it: ContentItem): string {
   const p = it.payload as Record<string, string>;
   return (p.title_en || p.title_es || p.subject || p.hero_en || it.id.slice(0, 8)) as string;
@@ -54,6 +64,12 @@ export default function ContentClient() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState<null | { label: string; done: number; total: number }>(null);
+
+  // Generation state
+  const [genBusy, setGenBusy] = useState(false);
+  const [genElapsed, setGenElapsed] = useState(0);
+  const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [genResult, setGenResult] = useState<null | { inserted: number; rejected: number; cost: number }>(null);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | ContentType>("all");
@@ -84,6 +100,12 @@ export default function ContentClient() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    return () => {
+      if (genTimerRef.current) clearInterval(genTimerRef.current);
+    };
+  }, []);
+
   const visible = useMemo(() => {
     return items.filter((it) => {
       if (typeFilter !== "all" && it.type !== typeFilter) return false;
@@ -102,8 +124,14 @@ export default function ContentClient() {
   }, [items]);
 
   async function generate() {
-    setBusy(true);
+    setGenBusy(true);
+    setGenElapsed(0);
+    setGenResult(null);
     setError("");
+    const start = Date.now();
+    genTimerRef.current = setInterval(() => {
+      setGenElapsed((Date.now() - start) / 1000);
+    }, 100);
     try {
       const res = await fetch("/api/admin/content/generate", {
         method: "POST",
@@ -116,14 +144,18 @@ export default function ContentClient() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-      const r = (await res.json()) as { inserted: number; cost_usd: number };
+      const r = (await res.json()) as { inserted: number; rejected?: number; cost_usd: number };
+      setGenResult({ inserted: r.inserted, rejected: r.rejected ?? 0, cost: r.cost_usd });
       setGenBrief("");
       await load();
-      alert(`Generados ${r.inserted} ítems. Costo $${r.cost_usd.toFixed(4)}.`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Generation failed");
     } finally {
-      setBusy(false);
+      if (genTimerRef.current) {
+        clearInterval(genTimerRef.current);
+        genTimerRef.current = null;
+      }
+      setGenBusy(false);
     }
   }
 
@@ -237,7 +269,9 @@ export default function ContentClient() {
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-zinc-900">Generar contenido nuevo</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Claude genera <code className="rounded bg-zinc-100 px-1">count</code> ítems del tipo elegido. Cae en estado "borrador" hasta que apruebes.
+          Claude genera <code className="rounded bg-zinc-100 px-1">count</code> ítems del tipo elegido. Antes
+          de generar consulta los títulos ya existentes en la biblioteca para no duplicar. Cae en estado
+          "borrador" hasta que apruebes.
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-3 text-xs">
           <div>
@@ -245,7 +279,8 @@ export default function ContentClient() {
             <select
               value={genType}
               onChange={(e) => setGenType(e.target.value as ContentType)}
-              className="mt-1 rounded-md border border-zinc-300 px-2 py-1"
+              disabled={genBusy}
+              className="mt-1 rounded-md border border-zinc-300 px-2 py-1 disabled:opacity-50"
             >
               <option value="prompt">Prompt para biblioteca</option>
               <option value="blog_post">Blog /learn</option>
@@ -258,8 +293,9 @@ export default function ContentClient() {
               min={1}
               max={10}
               value={genCount}
+              disabled={genBusy}
               onChange={(e) => setGenCount(Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1)))}
-              className="mt-1 w-16 rounded-md border border-zinc-300 px-2 py-1"
+              className="mt-1 w-16 rounded-md border border-zinc-300 px-2 py-1 disabled:opacity-50"
             />
           </div>
           <div>
@@ -267,7 +303,8 @@ export default function ContentClient() {
             <select
               value={genLang}
               onChange={(e) => setGenLang(e.target.value as "en" | "es")}
-              className="mt-1 rounded-md border border-zinc-300 px-2 py-1"
+              disabled={genBusy}
+              className="mt-1 rounded-md border border-zinc-300 px-2 py-1 disabled:opacity-50"
             >
               <option value="es">Español</option>
               <option value="en">English</option>
@@ -278,18 +315,51 @@ export default function ContentClient() {
             <input
               value={genBrief}
               onChange={(e) => setGenBrief(e.target.value)}
+              disabled={genBusy}
               placeholder="ej: enfoca en branding para clínicas dentales"
-              className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1 disabled:opacity-50"
             />
           </div>
           <button
             onClick={generate}
-            disabled={busy}
+            disabled={genBusy}
             className="rounded-md bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
           >
-            {busy ? "Generando…" : "Generar"}
+            {genBusy ? "Generando…" : "Generar"}
           </button>
         </div>
+
+        {/* Live status during generation */}
+        {genBusy && (
+          <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <div className="flex items-center gap-3 text-xs">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+              <span className="font-mono tabular-nums text-zinc-900">
+                {genElapsed.toFixed(1)}s
+              </span>
+              <span className="text-zinc-600">{expectedDurationLabel(genCount)}</span>
+              <span className="text-zinc-400">Claude está redactando — no cierres la ventana.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Last result */}
+        {!genBusy && genResult && (
+          <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
+            <div className="font-semibold text-emerald-900">
+              Generación completada en {genElapsed.toFixed(1)}s.
+            </div>
+            <div className="mt-0.5 text-emerald-800">
+              {genResult.inserted} ítem{genResult.inserted === 1 ? "" : "s"} insertado{genResult.inserted === 1 ? "" : "s"}
+              {genResult.rejected > 0 && (
+                <>
+                  {" "}· {genResult.rejected} rechazado{genResult.rejected === 1 ? "" : "s"} por duplicado
+                </>
+              )}{" "}
+              · costo ${genResult.cost.toFixed(4)}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Bulk actions */}
@@ -342,7 +412,9 @@ export default function ContentClient() {
           <option value="skipped">Skipped</option>
         </select>
         <span className="text-zinc-400">·</span>
-        <span className="text-zinc-500">{visible.length} de {items.length}</span>
+        <span className="text-zinc-500">
+          {visible.length} de {items.length}
+        </span>
       </div>
 
       {/* Items list */}
@@ -368,9 +440,7 @@ export default function ContentClient() {
                     {it.edited_by_human && <span className="ml-1">✎</span>}
                   </span>
                   <span className="text-zinc-400">{it.language.toUpperCase()}</span>
-                  {it.published_ref && (
-                    <span className="text-zinc-400">→ {it.published_ref}</span>
-                  )}
+                  {it.published_ref && <span className="text-zinc-400">→ {it.published_ref}</span>}
                 </div>
                 <h3 className="mt-1.5 truncate text-sm font-semibold text-zinc-900">{previewTitle(it)}</h3>
                 <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{previewSnippet(it)}</p>
@@ -396,6 +466,58 @@ export default function ContentClient() {
   );
 }
 
+/* ---------- Drawer ---------- */
+
+type PayloadShape = Record<string, unknown>;
+
+/* Field metadata per content type. Determines how each payload key is
+ * rendered in the Lectura tab: single-line input vs multi-line textarea
+ * vs array editor. Anything not listed here falls back to a small input
+ * at the bottom (so unknown fields are still editable). */
+interface FieldSpec {
+  key: string;
+  label: string;
+  kind: "input" | "textarea" | "csv";
+  rows?: number;
+  optional?: boolean;
+}
+
+const FIELDS_PROMPT: FieldSpec[] = [
+  { key: "title_en", label: "Title (EN)", kind: "input" },
+  { key: "title_es", label: "Título (ES)", kind: "input" },
+  { key: "category", label: "Categoría", kind: "input" },
+  { key: "subcategory", label: "Subcategoría", kind: "input" },
+  { key: "ai_model", label: "AI model", kind: "input" },
+  { key: "difficulty", label: "Dificultad", kind: "input" },
+  { key: "tier", label: "Tier", kind: "input" },
+  { key: "body_en", label: "Body (EN) — el prompt en sí", kind: "textarea", rows: 10 },
+  { key: "body_es", label: "Body (ES) — el prompt en sí", kind: "textarea", rows: 10 },
+  { key: "use_case", label: "Use case", kind: "input", optional: true },
+  { key: "expected_output", label: "Expected output", kind: "input", optional: true },
+  { key: "tags", label: "Tags (comma-separated)", kind: "csv", optional: true },
+];
+
+const FIELDS_BLOG: FieldSpec[] = [
+  { key: "slug", label: "Slug", kind: "input" },
+  { key: "category", label: "Categoría", kind: "input" },
+  { key: "title_en", label: "Title (EN)", kind: "input" },
+  { key: "title_es", label: "Título (ES)", kind: "input" },
+  { key: "meta_description_en", label: "Meta description (EN)", kind: "textarea", rows: 2 },
+  { key: "meta_description_es", label: "Meta description (ES)", kind: "textarea", rows: 2 },
+  { key: "hero_en", label: "Hero (EN)", kind: "input" },
+  { key: "hero_es", label: "Hero (ES)", kind: "input" },
+  { key: "intro_en", label: "Intro (EN)", kind: "textarea", rows: 6 },
+  { key: "intro_es", label: "Intro (ES)", kind: "textarea", rows: 6 },
+  { key: "use_cases_en", label: "Use cases (EN, one per line)", kind: "csv", rows: 6 },
+  { key: "use_cases_es", label: "Use cases (ES, one per line)", kind: "csv", rows: 6 },
+];
+
+function fieldsFor(type: ContentType): FieldSpec[] {
+  if (type === "prompt") return FIELDS_PROMPT;
+  if (type === "blog_post") return FIELDS_BLOG;
+  return [];
+}
+
 function ItemDrawer({
   item,
   busy,
@@ -406,32 +528,59 @@ function ItemDrawer({
   item: ContentItem;
   busy: boolean;
   onClose: () => void;
-  onPatch: (updates: { status?: Status; payload?: Record<string, unknown> }) => void;
+  onPatch: (updates: { status?: Status; payload?: PayloadShape }) => void;
   onDelete: () => void;
 }) {
-  const [json, setJson] = useState(() => JSON.stringify(item.payload, null, 2));
+  /* Single source of truth for the edited payload. Both the Lectura
+   * tab and the JSON tab read/write the same `payload` object, so
+   * switching tabs preserves edits regardless of which view made
+   * them. */
+  const [tab, setTab] = useState<"lectura" | "json">("lectura");
+  const [payload, setPayload] = useState<PayloadShape>(item.payload);
+  const [jsonText, setJsonText] = useState(() => JSON.stringify(item.payload, null, 2));
+  const [jsonError, setJsonError] = useState("");
+
+  // When the underlying item changes (e.g. after a save round-trips),
+  // reset our local copies.
   useEffect(() => {
-    setJson(JSON.stringify(item.payload, null, 2));
+    setPayload(item.payload);
+    setJsonText(JSON.stringify(item.payload, null, 2));
+    setJsonError("");
   }, [item.id, item.updated_at]);
 
   const dirty = useMemo(() => {
-    try {
-      return JSON.stringify(JSON.parse(json)) !== JSON.stringify(item.payload);
-    } catch {
-      return true; // invalid JSON, mark dirty so save button is enabled (user can still try)
-    }
-  }, [json, item.payload]);
+    return JSON.stringify(payload) !== JSON.stringify(item.payload);
+  }, [payload, item.payload]);
 
-  function saveEdits() {
-    let parsed;
+  function setField(key: string, value: unknown) {
+    setPayload((p) => {
+      const next = { ...p, [key]: value };
+      // Keep JSON tab in sync.
+      setJsonText(JSON.stringify(next, null, 2));
+      return next;
+    });
+  }
+
+  function handleJsonChange(text: string) {
+    setJsonText(text);
     try {
-      parsed = JSON.parse(json);
+      const parsed = JSON.parse(text);
+      setPayload(parsed);
+      setJsonError("");
     } catch (e) {
-      alert("JSON inválido: " + (e instanceof Error ? e.message : String(e)));
+      setJsonError(e instanceof Error ? e.message : "JSON inválido");
+    }
+  }
+
+  function save() {
+    if (jsonError) {
+      alert("JSON inválido: " + jsonError);
       return;
     }
-    onPatch({ payload: parsed });
+    onPatch({ payload });
   }
+
+  const fields = fieldsFor(item.type);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -445,28 +594,126 @@ function ItemDrawer({
               </p>
               <h2 className="mt-0.5 text-lg font-bold tracking-tight">{previewTitle(item)}</h2>
               <p className="text-xs text-zinc-500">
-                status <span className={`font-semibold ${STATUS_PILL[item.status]} rounded px-1.5`}>{item.status}</span>
+                status{" "}
+                <span className={`font-semibold ${STATUS_PILL[item.status]} rounded px-1.5`}>
+                  {item.status}
+                </span>
                 {item.edited_by_human && <span className="ml-1 text-emerald-700">✎ editado</span>}
                 {item.published_ref && <span className="ml-2">→ {item.published_ref}</span>}
               </p>
             </div>
-            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
+            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">
+              ✕
+            </button>
+          </div>
+          {/* View tabs */}
+          <div className="mt-4 flex gap-1 text-xs">
+            <button
+              onClick={() => setTab("lectura")}
+              className={`rounded-t-md px-3 py-1.5 ${
+                tab === "lectura"
+                  ? "bg-zinc-100 font-semibold text-zinc-900"
+                  : "text-zinc-500 hover:bg-zinc-50"
+              }`}
+            >
+              Lectura
+            </button>
+            <button
+              onClick={() => setTab("json")}
+              className={`rounded-t-md px-3 py-1.5 ${
+                tab === "json"
+                  ? "bg-zinc-100 font-semibold text-zinc-900"
+                  : "text-zinc-500 hover:bg-zinc-50"
+              }`}
+            >
+              JSON
+            </button>
+            {dirty && <span className="ml-2 self-center text-amber-700">●</span>}
           </div>
         </header>
-        <div className="flex-1 space-y-3 px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Payload (JSON editable)</p>
-          <textarea
-            value={json}
-            onChange={(e) => setJson(e.target.value)}
-            rows={24}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-zinc-900"
-          />
+
+        <div className="flex-1 space-y-4 px-5 py-4">
+          {tab === "lectura" ? (
+            fields.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Vista de lectura no implementada para este tipo. Usa el tab JSON.
+              </p>
+            ) : (
+              fields.map((f) => {
+                const raw = payload[f.key];
+                const value =
+                  f.kind === "csv"
+                    ? Array.isArray(raw)
+                      ? (raw as string[]).join("\n")
+                      : typeof raw === "string"
+                      ? raw
+                      : ""
+                    : typeof raw === "string"
+                    ? raw
+                    : raw === undefined || raw === null
+                    ? ""
+                    : String(raw);
+                const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0);
+                return (
+                  <div key={f.key}>
+                    <label className="block text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+                      {f.label}
+                      {f.optional && isEmpty && <span className="ml-1 text-zinc-300">(opcional)</span>}
+                    </label>
+                    {f.kind === "input" ? (
+                      <input
+                        value={value}
+                        onChange={(e) => setField(f.key, e.target.value)}
+                        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-zinc-900"
+                      />
+                    ) : f.kind === "textarea" ? (
+                      <textarea
+                        value={value}
+                        onChange={(e) => setField(f.key, e.target.value)}
+                        rows={f.rows ?? 4}
+                        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-zinc-900"
+                      />
+                    ) : (
+                      <textarea
+                        value={value}
+                        onChange={(e) => {
+                          // CSV mode: stored as array internally.
+                          const arr = e.target.value
+                            .split(/[\n,]/)
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          setField(f.key, arr);
+                        }}
+                        rows={f.rows ?? 3}
+                        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-zinc-900"
+                      />
+                    )}
+                  </div>
+                );
+              })
+            )
+          ) : (
+            <div>
+              <textarea
+                value={jsonText}
+                onChange={(e) => handleJsonChange(e.target.value)}
+                rows={28}
+                className={`w-full rounded-md border px-3 py-2 font-mono text-xs leading-relaxed outline-none ${
+                  jsonError ? "border-red-400 focus:border-red-600" : "border-zinc-300 focus:border-zinc-900"
+                }`}
+              />
+              {jsonError && (
+                <p className="mt-1 text-xs text-red-600">JSON inválido: {jsonError}</p>
+              )}
+            </div>
+          )}
           {item.cost_usd !== null && item.cost_usd !== undefined && (
             <p className="text-[10px] text-zinc-400">
               Generado a costo ${Number(item.cost_usd).toFixed(4)}
             </p>
           )}
         </div>
+
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 px-5 py-3">
           <div className="flex gap-2">
             <button
@@ -478,8 +725,8 @@ function ItemDrawer({
             </button>
             {dirty && (
               <button
-                onClick={saveEdits}
-                disabled={busy}
+                onClick={save}
+                disabled={busy || !!jsonError}
                 className="rounded-md border border-emerald-500 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
               >
                 Guardar cambios
