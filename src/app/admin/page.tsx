@@ -25,7 +25,7 @@ async function safeCount(table: string): Promise<number | null> {
 }
 
 export default async function AdminHome() {
-  const [clients, roastTraces, skillTraces, runs, signals, admins, outreachTargets] =
+  const [clients, roastTraces, skillTraces, runs, signals, admins, outreachTargets, contentItems] =
     await Promise.all([
       safeCount("clients"),
       safeCount("traces"),
@@ -34,6 +34,7 @@ export default async function AdminHome() {
       safeCount("growth_signals"),
       safeCount("admin_users"),
       safeCount("outreach_targets"),
+      safeCount("content_items"),
     ]);
 
   const seguimiento: Card[] = [
@@ -84,6 +85,12 @@ export default async function AdminHome() {
       label: "Outreach",
       desc: "Warm targets que el engine puede contactar (Module 2). Marca cuáles sí/no, revisa los drafts personalizados que Claude genera por cada uno, edita lo que necesites, aprueba antes de envío. Nada sale a producción sin tu visto bueno.",
       badge: outreachTargets,
+    },
+    {
+      href: "/admin/content",
+      label: "Content Factory",
+      desc: "Module 3 Phase 3a. Genera prompts nuevos para la biblioteca y posts editoriales para /learn vía Claude. Cada item cae en borrador, lo apruebas, y un publisher empuja a la tabla pública. Bulk approve + bulk publish. Imágenes + distribución multi-canal vienen en Phase 3b/3c.",
+      badge: contentItems,
     },
     {
       href: "/admin/clients",
