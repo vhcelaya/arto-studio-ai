@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LEARN_PAGES } from "@/lib/learn-config";
+import type { LearnPageConfig } from "@/lib/learn-config";
+import { getAllLearnPages } from "@/lib/learn-pages";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+
+// Re-fetch dynamic blog posts every 60s so newly published Content
+// Factory items appear without a redeploy. Literal required —
+// Next.js segment configs must be statically analyzable.
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ locale: string }>;
@@ -27,9 +33,12 @@ export default async function LearnIndex({ params }: Props) {
   const t = getDictionary(locale).learn;
   const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
 
-  // Pick the locale-correct hero/intro per page (LEARN_PAGES has *_en + *_es).
-  const heroOf = (p: (typeof LEARN_PAGES)[number]) => (locale === "es" ? p.hero_es : p.hero_en);
-  const introOf = (p: (typeof LEARN_PAGES)[number]) => (locale === "es" ? p.intro_es : p.intro_en);
+  // Merge hardcoded vertical guides + dynamic Content Factory blog posts.
+  const pages = await getAllLearnPages();
+
+  // Pick the locale-correct hero/intro per page (LearnPageConfig has *_en + *_es).
+  const heroOf = (p: LearnPageConfig) => (locale === "es" ? p.hero_es : p.hero_en);
+  const introOf = (p: LearnPageConfig) => (locale === "es" ? p.intro_es : p.intro_en);
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-16">
@@ -38,7 +47,7 @@ export default async function LearnIndex({ params }: Props) {
       <p className="mt-3 max-w-2xl text-neutral-700">{t.sub}</p>
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {LEARN_PAGES.map((page) => (
+        {pages.map((page) => (
           <Link
             key={page.slug}
             href={lp(`/learn/${page.slug}`)}

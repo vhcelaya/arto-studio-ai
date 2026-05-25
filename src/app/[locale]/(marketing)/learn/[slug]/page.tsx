@@ -2,23 +2,33 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LEARN_PAGES, type LearnPageConfig } from "@/lib/learn-config";
+import { getLearnPageBySlug } from "@/lib/learn-pages";
 import { LOCALES, isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+
+// Re-fetch dynamic blog posts every 60s. Literal required — segment
+// configs must be statically analyzable.
+export const revalidate = 60;
+// New blog posts that arrive between static-param builds: render on
+// demand, then cache via the revalidate above.
+export const dynamicParams = true;
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>;
 }
 
-// Pre-generate the locale × slug cross-product so /en/learn/branding and
-// /es/learn/branding are both built at compile time.
+// Pre-generate the locale × slug cross-product so /en/learn/branding
+// and /es/learn/branding are both built at compile time. Only the 12
+// hardcoded slugs are pre-rendered; Content Factory blog posts go
+// through dynamicParams=true and the revalidate above.
 export function generateStaticParams() {
   return LOCALES.flatMap((locale) =>
     LEARN_PAGES.map((p) => ({ locale, slug: p.slug })),
   );
 }
 
-function getPage(slug: string): LearnPageConfig | null {
-  return LEARN_PAGES.find((p) => p.slug === slug) ?? null;
+async function getPage(slug: string): Promise<LearnPageConfig | null> {
+  return getLearnPageBySlug(slug);
 }
 
 function pickTitle(page: LearnPageConfig, locale: Locale): string {
@@ -39,7 +49,7 @@ function pickMeta(page: LearnPageConfig, locale: Locale): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: localeParam, slug } = await params;
-  const page = getPage(slug);
+  const page = await getPage(slug);
   if (!page) return {};
   const locale: Locale = isLocale(localeParam) ? localeParam : "en";
   return {
@@ -57,7 +67,7 @@ export default async function LearnSlugPage({ params }: Props) {
   const { locale: localeParam, slug } = await params;
   if (!isLocale(localeParam)) notFound();
   const locale = localeParam as Locale;
-  const page = getPage(slug);
+  const page = await getPage(slug);
   if (!page) notFound();
 
   const t = getDictionary(locale).learn;

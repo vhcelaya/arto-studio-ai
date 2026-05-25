@@ -217,22 +217,33 @@ export default function ContentClient() {
     if (failed > 0) alert(`Terminé: ${i - failed} OK, ${failed} fallaron`);
   }
 
-  async function publishApprovedPrompts() {
-    const approvedPrompts = items.filter((i) => i.status === "approved" && i.type === "prompt");
-    if (approvedPrompts.length === 0) return alert("No hay prompts aprobados pendientes de publicar.");
-    if (!confirm(`Publicar ${approvedPrompts.length} prompts a la biblioteca?`)) return;
+  async function publishApprovedByType(targetType: "prompt" | "blog_post") {
+    const approved = items.filter((i) => i.status === "approved" && i.type === targetType);
+    if (approved.length === 0) {
+      return alert(
+        targetType === "prompt"
+          ? "No hay prompts aprobados pendientes de publicar."
+          : "No hay blog posts aprobados pendientes de publicar.",
+      );
+    }
+    const destination = targetType === "prompt" ? "a la biblioteca" : "a /learn";
+    if (!confirm(`Publicar ${approved.length} ${targetType === "prompt" ? "prompts" : "blog posts"} ${destination}?`)) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/content/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "prompt" }),
+        body: JSON.stringify({ type: targetType }),
       });
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-      const r = (await res.json()) as { published: number; results: Array<{ status: string; prompt_id?: string; error?: string }> };
+      const r = (await res.json()) as {
+        published: number;
+        results: Array<{ status: string; prompt_id?: string; slug?: string; error?: string }>;
+      };
       const failed = r.results.filter((x) => x.status === "failed").length;
       await load();
-      alert(`${r.published} prompts publicados a la biblioteca${failed > 0 ? ` (${failed} fallaron)` : ""}.`);
+      const label = targetType === "prompt" ? "prompts" : "blog posts";
+      alert(`${r.published} ${label} publicados${failed > 0 ? ` (${failed} fallaron)` : ""}.`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Publish failed");
     } finally {
@@ -373,11 +384,18 @@ export default function ContentClient() {
           Aprobar todos los borradores
         </button>
         <button
-          onClick={publishApprovedPrompts}
+          onClick={() => publishApprovedByType("prompt")}
           disabled={busy}
           className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
         >
           Publicar prompts aprobados → biblioteca
+        </button>
+        <button
+          onClick={() => publishApprovedByType("blog_post")}
+          disabled={busy}
+          className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
+        >
+          Publicar blog posts aprobados → /learn
         </button>
         {bulkProgress && (
           <span className="text-zinc-500">
