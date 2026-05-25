@@ -143,6 +143,14 @@ export async function POST(request: NextRequest) {
   const context = await fetchContextSignals();
   const briefBlock = brief ? `\n\nOperator brief: ${brief}` : "";
 
+  /* Dedup pass 1 — anti-list in the prompt.
+   * We hand Claude every existing title (en + es) for prompts, or every
+   * existing /learn slug + title for blog posts, so it actively avoids
+   * generating something we already have. ~5-15K input tokens depending
+   * on catalog size, well within budget for the quality bump. */
+  const sb = createAdminClient();
+  const antiList = await buildAntiList(sb, type);
+
   const anth = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const resp = await anth.messages.create({
     model: MODEL,
@@ -152,7 +160,7 @@ export async function POST(request: NextRequest) {
     messages: [
       {
         role: "user",
-        content: instructions + briefBlock + context,
+        content: instructions + briefBlock + context + antiList,
       },
     ],
   });
@@ -181,20 +189,168 @@ export async function POST(request: NextRequest) {
     (resp.usage.output_tokens / 1_000_000) * pricing.output;
   const costPerItem = totalCost / parsed.items.length;
 
-  const sb = createAdminClient();
-  const rows = parsed.items.map((payload) => ({
+  /* Dedup pass 2 — fuzzy match after generation.
+   * Claude sometimes ignores the anti-list (~5% of the time). We
+   * normalize titles and reject any item whose normalized title appears
+   * in the existing catalog (or whose slug already exists for blog
+   * posts). Rejected items are NOT inserted; we report them back so the
+   * operator can see what happened. */
+  const dedup = await dedupCheck(sb, type, parsed.items);
+
+  const rowsToInsert = dedup.kept.map((payload) => ({
     type,
     status: "draft" as const,
     language,
     payload,
     cost_usd: costPerItem,
   }));
-  const { data: inserted, error } = await sb.from("content_items").insert(rows).select();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let inserted: unknown[] = [];
+  if (rowsToInsert.length > 0) {
+    const { data, error } = await sb.from("content_items").insert(rowsToInsert).select();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    inserted = data ?? [];
+  }
 
   return NextResponse.json({
-    inserted: inserted?.length ?? 0,
+    inserted: inserted.length,
+    rejected: dedup.rejected.length,
+    rejections: dedup.rejected,
     items: inserted,
     cost_usd: totalCost,
   });
+}
+
+/* ---------- dedup helpers ---------- */
+
+function normalizeTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function buildAntiList(
+  sb: ReturnType<typeof createAdminClient>,
+  type: "prompt" | "blog_post",
+): Promise<string> {
+  if (type === "prompt") {
+    const { data } = await sb.from("prompts").select("id, title_en, title_es").limit(5000);
+    if (!data || data.length === 0) return "";
+    const lines = data
+      .map((p) => `- ${p.id}: ${p.title_en ?? ""} | ${p.title_es ?? ""}`)
+      .join("\n");
+    return `\n\nDO NOT generate anything similar to these prompts already in the ARTO catalog. The new prompts MUST cover different angles, use-cases, or methodologies:\n${lines}`;
+  }
+  // blog_post: pull existing /learn slugs + titles from content_items too.
+  const { data: existing } = await sb
+    .from("content_items")
+    .select("payload")
+    .eq("type", "blog_post");
+  const taken = new Set<string>();
+  for (const row of existing ?? []) {
+    const p = row.payload as Record<string, string>;
+    if (p.slug) taken.add(p.slug);
+  }
+  // Also exclude the 12 hardcoded /learn/[slug] vertical guides.
+  const HARDCODED_LEARN_SLUGS = [
+    "branding",
+    "graphic-design",
+    "copywriting",
+    "photography",
+    "video",
+    "ux-ui",
+    "illustration",
+    "marketing",
+    "music",
+    "architecture",
+    "fashion",
+    "creative-productivity",
+  ];
+  for (const slug of HARDCODED_LEARN_SLUGS) taken.add(slug);
+  const list = Array.from(taken).sort().join(", ");
+  return `\n\nDO NOT use any of these slugs (already taken): ${list}. Pick a fresh slug for each blog post.`;
+}
+
+interface DedupResult {
+  kept: Array<Record<string, unknown>>;
+  rejected: Array<{ payload: Record<string, unknown>; reason: string }>;
+}
+
+async function dedupCheck(
+  sb: ReturnType<typeof createAdminClient>,
+  type: "prompt" | "blog_post",
+  items: unknown[],
+): Promise<DedupResult> {
+  const result: DedupResult = { kept: [], rejected: [] };
+
+  if (type === "prompt") {
+    const { data: existing } = await sb.from("prompts").select("title_en, title_es");
+    const taken = new Set<string>();
+    for (const r of existing ?? []) {
+      if (r.title_en) taken.add(normalizeTitle(r.title_en));
+      if (r.title_es) taken.add(normalizeTitle(r.title_es));
+    }
+    for (const raw of items) {
+      const payload = raw as Record<string, string>;
+      const enKey = payload.title_en ? normalizeTitle(payload.title_en) : "";
+      const esKey = payload.title_es ? normalizeTitle(payload.title_es) : "";
+      if ((enKey && taken.has(enKey)) || (esKey && taken.has(esKey))) {
+        result.rejected.push({ payload: raw as Record<string, unknown>, reason: "duplicate title" });
+        continue;
+      }
+      // Reject obvious within-batch dupes too.
+      if (enKey) taken.add(enKey);
+      if (esKey) taken.add(esKey);
+      result.kept.push(raw as Record<string, unknown>);
+    }
+    return result;
+  }
+
+  // blog_post: dedup by slug.
+  const { data: existing } = await sb
+    .from("content_items")
+    .select("payload")
+    .eq("type", "blog_post");
+  const takenSlugs = new Set<string>();
+  for (const row of existing ?? []) {
+    const p = row.payload as Record<string, string>;
+    if (p.slug) takenSlugs.add(p.slug.toLowerCase());
+  }
+  const HARDCODED = [
+    "branding",
+    "graphic-design",
+    "copywriting",
+    "photography",
+    "video",
+    "ux-ui",
+    "illustration",
+    "marketing",
+    "music",
+    "architecture",
+    "fashion",
+    "creative-productivity",
+  ];
+  for (const s of HARDCODED) takenSlugs.add(s);
+
+  for (const raw of items) {
+    const payload = raw as Record<string, string>;
+    const slug = (payload.slug ?? "").toLowerCase().trim();
+    if (!slug) {
+      result.rejected.push({ payload: raw as Record<string, unknown>, reason: "missing slug" });
+      continue;
+    }
+    if (takenSlugs.has(slug)) {
+      result.rejected.push({
+        payload: raw as Record<string, unknown>,
+        reason: `slug already exists: ${slug}`,
+      });
+      continue;
+    }
+    takenSlugs.add(slug);
+    result.kept.push(raw as Record<string, unknown>);
+  }
+  return result;
 }
