@@ -25,14 +25,16 @@ async function safeCount(table: string): Promise<number | null> {
 }
 
 export default async function AdminHome() {
-  const [clients, roastTraces, skillTraces, runs, signals, admins] = await Promise.all([
-    safeCount("clients"),
-    safeCount("traces"),
-    safeCount("skill_traces"),
-    safeCount("scraping_runs"),
-    safeCount("growth_signals"),
-    safeCount("admin_users"),
-  ]);
+  const [clients, roastTraces, skillTraces, runs, signals, admins, outreachTargets] =
+    await Promise.all([
+      safeCount("clients"),
+      safeCount("traces"),
+      safeCount("skill_traces"),
+      safeCount("scraping_runs"),
+      safeCount("growth_signals"),
+      safeCount("admin_users"),
+      safeCount("outreach_targets"),
+    ]);
 
   const seguimiento: Card[] = [
     {
@@ -77,6 +79,12 @@ export default async function AdminHome() {
   ];
 
   const administrativas: Card[] = [
+    {
+      href: "/admin/outreach",
+      label: "Outreach",
+      desc: "Warm targets que el engine puede contactar (Module 2). Marca cuáles sí/no, revisa los drafts personalizados que Claude genera por cada uno, edita lo que necesites, aprueba antes de envío. Nada sale a producción sin tu visto bueno.",
+      badge: outreachTargets,
+    },
     {
       href: "/admin/clients",
       label: "Clients",
