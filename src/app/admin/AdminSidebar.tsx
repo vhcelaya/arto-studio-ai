@@ -68,6 +68,9 @@ export default function AdminSidebar({ email }: Props) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-white">
       <div className="border-b border-zinc-200 px-4 py-4">
+        {/* Logo links to admin home (Resumen) — standard pattern. The
+         * 'Volver al sitio' button below is the explicit exit affordance
+         * back to creative.artostudio.ai. */}
         <Link href="/admin" className="flex items-center gap-2">
           <Image
             src="/brand/arto-logo-black.png"
@@ -83,6 +86,15 @@ export default function AdminSidebar({ email }: Props) {
         <p className="mt-2 truncate text-[11px] text-zinc-400" title={email}>
           {email}
         </p>
+        <Link
+          href="/"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] font-medium text-zinc-700 transition hover:border-zinc-500 hover:bg-zinc-50"
+        >
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Volver al sitio
+        </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -115,15 +127,11 @@ export default function AdminSidebar({ email }: Props) {
       </nav>
 
       <div className="border-t border-zinc-200 px-2 py-3">
-        <Link
-          href="/"
-          className="block rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100"
-        >
-          ← Salir del panel
-        </Link>
+        {/* "Volver al sitio" lives in the header for primary discovery.
+         * Footer keeps the sign-out only. */}
         <Link
           href="/auth/signout"
-          className="mt-1 block rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:bg-red-50 hover:text-red-600"
+          className="block rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:bg-red-50 hover:text-red-600"
         >
           Cerrar sesión
         </Link>
