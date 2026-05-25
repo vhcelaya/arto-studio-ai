@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
-import { LEARN_PAGES } from "@/lib/learn-config";
+import { getAllLearnSlugs } from "@/lib/learn-pages";
 import { LOCALES } from "@/i18n/config";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://creative.artostudio.ai").replace(/\/+$/, "");
@@ -48,10 +48,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/roast`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 
-  // /learn/[slug] — 12 SEO landings × 2 locales.
+  // /learn/[slug] — 12 hardcoded SEO landings + any Content Factory
+  // blog posts that have been published, × 2 locales.
+  const learnSlugs = await getAllLearnSlugs();
   const learnEntries: SitemapEntry[] = LOCALES.flatMap((loc) =>
-    LEARN_PAGES.map((page) => ({
-      url: `${SITE_URL}/${loc}/learn/${page.slug}`,
+    learnSlugs.map((slug) => ({
+      url: `${SITE_URL}/${loc}/learn/${slug}`,
       lastModified: now,
       changeFrequency: "weekly" as ChangeFreq,
       priority: 0.7,

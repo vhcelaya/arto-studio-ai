@@ -111,9 +111,9 @@ export async function POST(request: NextRequest) {
   const itemId = body?.item_id as string | undefined;
   const type = body?.type as string | undefined;
 
-  if (!itemId && type !== "prompt") {
+  if (!itemId && type !== "prompt" && type !== "blog_post") {
     return NextResponse.json(
-      { error: "must specify item_id, or type='prompt' to bulk-publish" },
+      { error: "must specify item_id, or type='prompt'|'blog_post' to bulk-publish" },
       { status: 400 },
     );
   }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     .select("id, type, payload")
     .eq("status", "approved");
   if (itemId) q = q.eq("id", itemId);
-  if (!itemId) q = q.eq("type", "prompt");
+  if (!itemId && type) q = q.eq("type", type);
   const { data: items, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!items || items.length === 0) {
@@ -137,22 +137,113 @@ export async function POST(request: NextRequest) {
     item_id: string;
     status: "published" | "skipped" | "failed";
     prompt_id?: string;
+    slug?: string;
     error?: string;
   }> = [];
 
   for (const item of items) {
-    if (item.type !== "prompt") {
-      results.push({ item_id: item.id, status: "skipped", error: "publisher not implemented for this type yet" });
-      continue;
-    }
-    const r = await publishOnePrompt(sb, { id: item.id, payload: item.payload as PromptPayload });
-    if (r.ok) {
-      results.push({ item_id: item.id, status: "published", prompt_id: r.promptId });
+    if (item.type === "prompt") {
+      const r = await publishOnePrompt(sb, { id: item.id, payload: item.payload as PromptPayload });
+      if (r.ok) {
+        results.push({ item_id: item.id, status: "published", prompt_id: r.promptId });
+      } else {
+        results.push({ item_id: item.id, status: "failed", error: r.error });
+      }
+    } else if (item.type === "blog_post") {
+      const r = await publishOneBlogPost(sb, { id: item.id, payload: item.payload as BlogPostPayload });
+      if (r.ok) {
+        results.push({ item_id: item.id, status: "published", slug: r.slug });
+      } else {
+        results.push({ item_id: item.id, status: "failed", error: r.error });
+      }
     } else {
-      results.push({ item_id: item.id, status: "failed", error: r.error });
+      results.push({
+        item_id: item.id,
+        status: "skipped",
+        error: `publisher not implemented for type='${item.type}' yet`,
+      });
     }
   }
 
   const published = results.filter((r) => r.status === "published").length;
   return NextResponse.json({ published, results });
+}
+
+/* blog_post publisher
+ * Flow for blog posts is simpler than prompts because /learn reads
+ * directly from content_items (status='published') via
+ * src/lib/learn-pages.ts. So 'publish' means: validate the payload
+ * has the required fields, dedup-check the slug against the hardcoded
+ * LEARN_PAGES and any other published blog_post, then flip
+ * status='published' + set published_at + published_ref to the slug. */
+
+interface BlogPostPayload {
+  slug: string;
+  category: string;
+  title_en: string;
+  title_es: string;
+  meta_description_en?: string;
+  meta_description_es?: string;
+  hero_en?: string;
+  hero_es?: string;
+  intro_en: string;
+  intro_es: string;
+  use_cases_en?: string[];
+  use_cases_es?: string[];
+}
+
+const HARDCODED_LEARN_SLUGS = new Set([
+  "branding",
+  "graphic-design",
+  "copywriting",
+  "photography",
+  "video",
+  "ux-ui",
+  "illustration",
+  "marketing",
+  "music",
+  "architecture",
+  "fashion",
+  "creative-productivity",
+]);
+
+async function publishOneBlogPost(
+  sb: ReturnType<typeof createAdminClient>,
+  item: { id: string; payload: BlogPostPayload },
+): Promise<{ ok: true; slug: string } | { ok: false; error: string }> {
+  const p = item.payload;
+  for (const k of ["slug", "category", "title_en", "title_es", "intro_en", "intro_es"] as const) {
+    if (!p[k]) return { ok: false, error: `missing payload.${k}` };
+  }
+
+  const slug = String(p.slug).toLowerCase().trim();
+  if (HARDCODED_LEARN_SLUGS.has(slug)) {
+    return { ok: false, error: `slug '${slug}' collides with a hardcoded /learn vertical guide` };
+  }
+
+  // Check against already-published blog posts (excluding this row).
+  const { data: clash } = await sb
+    .from("content_items")
+    .select("id")
+    .eq("type", "blog_post")
+    .eq("status", "published")
+    .neq("id", item.id)
+    .filter("payload->>slug", "eq", slug)
+    .limit(1);
+  if (clash && clash.length > 0) {
+    return { ok: false, error: `slug '${slug}' already published` };
+  }
+
+  const { error } = await sb
+    .from("content_items")
+    .update({
+      status: "published",
+      published_ref: slug,
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, slug };
 }
