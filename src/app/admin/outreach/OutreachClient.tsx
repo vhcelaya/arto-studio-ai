@@ -57,6 +57,10 @@ export default function OutreachClient() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openTargetId, setOpenTargetId] = useState<string | null>(null);
+  // Bulk operation progress (Claude draft generation / approval loops).
+  const [bulkRunning, setBulkRunning] = useState<null | { label: string; done: number; total: number }>(
+    null,
+  );
   // Filter UI state.
   const [filterIncluded, setFilterIncluded] = useState<"all" | "in" | "out">("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -196,7 +200,102 @@ export default function OutreachClient() {
     }
   }
 
+  /* ----- Bulk actions ----- */
+
+  async function bulkInclude(mode: "include" | "exclude", priority: "P1" | "P2" | "P3" | "any") {
+    const label =
+      mode === "include"
+        ? priority === "any"
+          ? "Incluyendo todos"
+          : `Incluyendo todos ${priority}`
+        : priority === "any"
+        ? "Excluyendo todos"
+        : `Excluyendo todos ${priority}`;
+    setBulkRunning({ label, done: 0, total: 1 });
+    try {
+      const res = await fetch("/api/admin/outreach/targets/bulk-include", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, priority }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Bulk update failed");
+    } finally {
+      setBulkRunning(null);
+    }
+  }
+
+  /* Generate drafts for every target that is included AND has no draft.
+   * Sequential to keep API/Claude pressure low (each draft is ~1.5s). */
+  async function bulkGenerateMissingDrafts() {
+    const candidates = targets.filter((t) => t.include_in_send && !t.draft);
+    if (candidates.length === 0) {
+      alert("No hay targets incluidos sin draft.");
+      return;
+    }
+    if (!confirm(`Generar ${candidates.length} drafts? Esto llama a Claude y tarda ~${Math.ceil(candidates.length * 1.5)}s.`)) {
+      return;
+    }
+    setBulkRunning({ label: "Generando drafts", done: 0, total: candidates.length });
+    let i = 0;
+    let failed = 0;
+    for (const t of candidates) {
+      try {
+        const res = await fetch("/api/admin/outreach/drafts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: t.id }),
+        });
+        if (!res.ok) failed += 1;
+      } catch {
+        failed += 1;
+      }
+      i += 1;
+      setBulkRunning({ label: "Generando drafts", done: i, total: candidates.length });
+    }
+    await load();
+    setBulkRunning(null);
+    if (failed > 0) alert(`Terminé: ${i - failed} OK, ${failed} fallaron. Revisa la tabla.`);
+  }
+
+  /* Approve every current draft (status='draft' → 'approved'). */
+  async function bulkApproveAllDrafts() {
+    const drafts = targets
+      .map((t) => t.draft)
+      .filter((d): d is Draft => !!d && d.status === "draft");
+    if (drafts.length === 0) {
+      alert("No hay drafts en estado borrador para aprobar.");
+      return;
+    }
+    if (!confirm(`Aprobar ${drafts.length} drafts? Después podrás disparar el envío con dry-run/trigger.`)) {
+      return;
+    }
+    setBulkRunning({ label: "Aprobando drafts", done: 0, total: drafts.length });
+    let i = 0;
+    let failed = 0;
+    for (const d of drafts) {
+      try {
+        const res = await fetch("/api/admin/outreach/drafts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: d.id, status: "approved" }),
+        });
+        if (!res.ok) failed += 1;
+      } catch {
+        failed += 1;
+      }
+      i += 1;
+      setBulkRunning({ label: "Aprobando drafts", done: i, total: drafts.length });
+    }
+    await load();
+    setBulkRunning(null);
+    if (failed > 0) alert(`Terminé: ${i - failed} aprobados, ${failed} fallaron.`);
+  }
+
   const openTarget = openTargetId ? targets.find((t) => t.id === openTargetId) ?? null : null;
+  const bulkBusy = bulkRunning !== null;
 
   return (
     <div className="space-y-6">
@@ -223,6 +322,82 @@ export default function OutreachClient() {
             <p className="mt-1 text-lg font-bold tabular-nums">{s.val}</p>
           </div>
         ))}
+      </div>
+
+      {/* Bulk actions */}
+      <div className="rounded-lg border border-zinc-200 bg-white p-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold text-zinc-700">Acciones masivas:</span>
+          {priorities.length > 0 && (
+            <>
+              <span className="text-zinc-400">·</span>
+              <span className="text-zinc-500">Inclusión:</span>
+              {priorities.map((p) => (
+                <button
+                  key={`inc-${p}`}
+                  disabled={bulkBusy}
+                  onClick={() =>
+                    bulkInclude("include", p as "P1" | "P2" | "P3" | "any")
+                  }
+                  className="rounded-md border border-zinc-300 px-2 py-1 hover:border-zinc-500 disabled:opacity-40"
+                >
+                  Incluir {p}
+                </button>
+              ))}
+              {priorities.map((p) => (
+                <button
+                  key={`exc-${p}`}
+                  disabled={bulkBusy}
+                  onClick={() =>
+                    bulkInclude("exclude", p as "P1" | "P2" | "P3" | "any")
+                  }
+                  className="rounded-md border border-zinc-300 px-2 py-1 hover:border-zinc-500 disabled:opacity-40"
+                >
+                  Excluir {p}
+                </button>
+              ))}
+              <button
+                disabled={bulkBusy}
+                onClick={() => bulkInclude("include", "any")}
+                className="rounded-md border border-zinc-300 px-2 py-1 hover:border-zinc-500 disabled:opacity-40"
+              >
+                Reset (incluir todos)
+              </button>
+            </>
+          )}
+          <span className="text-zinc-400">·</span>
+          <span className="text-zinc-500">Drafts:</span>
+          <button
+            disabled={bulkBusy}
+            onClick={bulkGenerateMissingDrafts}
+            className="rounded-md border border-emerald-400 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
+          >
+            Generar faltantes
+          </button>
+          <button
+            disabled={bulkBusy}
+            onClick={bulkApproveAllDrafts}
+            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
+          >
+            Aprobar todos los drafts
+          </button>
+        </div>
+        {bulkRunning && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+            <span>{bulkRunning.label}…</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+              <div
+                className="h-full bg-zinc-900 transition-all"
+                style={{
+                  width: `${Math.round((bulkRunning.done / Math.max(bulkRunning.total, 1)) * 100)}%`,
+                }}
+              />
+            </div>
+            <span className="tabular-nums">
+              {bulkRunning.done}/{bulkRunning.total}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
