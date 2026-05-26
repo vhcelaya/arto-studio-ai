@@ -494,6 +494,7 @@ export default function ContentClient() {
           onClose={() => setOpenId(null)}
           onPatch={(updates) => patchItem(openItem.id, updates)}
           onDelete={() => deleteItem(openItem.id)}
+          onReload={load}
         />
       )}
     </div>
@@ -567,13 +568,51 @@ function ItemDrawer({
   onClose,
   onPatch,
   onDelete,
+  onReload,
 }: {
   item: ContentItem;
   busy: boolean;
   onClose: () => void;
   onPatch: (updates: { status?: Status; payload?: PayloadShape }) => void;
   onDelete: () => void;
+  onReload: () => Promise<void>;
 }) {
+  /* Image generation state — independent of payload editing. */
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageElapsed, setImageElapsed] = useState(0);
+  const imageTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+    };
+  }, []);
+
+  async function generateImage() {
+    if (!confirm("Generar imagen con DALL-E? Toma ~10-20s y cuesta ~$0.04 USD.")) return;
+    setImageBusy(true);
+    setImageElapsed(0);
+    const start = Date.now();
+    imageTimerRef.current = setInterval(() => {
+      setImageElapsed((Date.now() - start) / 1000);
+    }, 100);
+    try {
+      const res = await fetch("/api/admin/content/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_id: item.id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+      await onReload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Image generation failed");
+    } finally {
+      if (imageTimerRef.current) {
+        clearInterval(imageTimerRef.current);
+        imageTimerRef.current = null;
+      }
+      setImageBusy(false);
+    }
+  }
   /* Single source of truth for the edited payload. Both the Lectura
    * tab and the JSON tab read/write the same `payload` object, so
    * switching tabs preserves edits regardless of which view made
@@ -755,6 +794,51 @@ function ItemDrawer({
               Generado a costo ${Number(item.cost_usd).toFixed(4)}
             </p>
           )}
+
+          {/* Image section — separate from payload editing because the
+            * image lives in payload.image_url but UX-wise it deserves a
+            * dedicated panel with its own loading state. */}
+          <div className="border-t border-zinc-200 pt-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+                Imagen
+              </p>
+              <button
+                onClick={generateImage}
+                disabled={busy || imageBusy}
+                className="rounded-md border border-zinc-300 px-2.5 py-1 text-[11px] hover:border-zinc-500 disabled:opacity-40"
+              >
+                {imageBusy
+                  ? `Generando… ${imageElapsed.toFixed(1)}s`
+                  : (payload as Record<string, string>).image_url
+                  ? "Regenerar imagen"
+                  : "Generar imagen (DALL-E)"}
+              </button>
+            </div>
+            {imageBusy && (
+              <p className="mt-1 text-[10px] text-zinc-500">
+                Usualmente tarda 10-20s. DALL-E 3 / gpt-image-1, ~$0.04 USD por imagen.
+              </p>
+            )}
+            {(payload as Record<string, string>).image_url ? (
+              <div className="mt-2">
+                <img
+                  src={(payload as Record<string, string>).image_url}
+                  alt={(payload as Record<string, string>).image_prompt ?? "Generated image"}
+                  className="w-full max-w-md rounded-md border border-zinc-200"
+                />
+                {(payload as Record<string, string>).image_prompt && (
+                  <p className="mt-1 text-[10px] italic text-zinc-500">
+                    Prompt: {(payload as Record<string, string>).image_prompt}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-zinc-400">
+                Sin imagen. Genera una con un click — Claude no genera imágenes, las pide a DALL-E.
+              </p>
+            )}
+          </div>
         </div>
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 px-5 py-3">
