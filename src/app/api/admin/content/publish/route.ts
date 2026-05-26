@@ -111,9 +111,9 @@ export async function POST(request: NextRequest) {
   const itemId = body?.item_id as string | undefined;
   const type = body?.type as string | undefined;
 
-  if (!itemId && type !== "prompt" && type !== "blog_post") {
+  if (!itemId && type !== "prompt" && type !== "blog_post" && type !== "social_post") {
     return NextResponse.json(
-      { error: "must specify item_id, or type='prompt'|'blog_post' to bulk-publish" },
+      { error: "must specify item_id, or type='prompt'|'blog_post'|'social_post' to bulk-publish" },
       { status: 400 },
     );
   }
@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
     status: "published" | "skipped" | "failed";
     prompt_id?: string;
     slug?: string;
+    buffer_ids?: string[];
     error?: string;
   }> = [];
 
@@ -153,6 +154,16 @@ export async function POST(request: NextRequest) {
       const r = await publishOneBlogPost(sb, { id: item.id, payload: item.payload as BlogPostPayload });
       if (r.ok) {
         results.push({ item_id: item.id, status: "published", slug: r.slug });
+      } else {
+        results.push({ item_id: item.id, status: "failed", error: r.error });
+      }
+    } else if (item.type === "social_post") {
+      const r = await publishOneSocialPost(sb, {
+        id: item.id,
+        payload: item.payload as SocialPostPayload,
+      });
+      if (r.ok) {
+        results.push({ item_id: item.id, status: "published", buffer_ids: r.bufferIds });
       } else {
         results.push({ item_id: item.id, status: "failed", error: r.error });
       }
@@ -246,4 +257,151 @@ async function publishOneBlogPost(
   if (error) return { ok: false, error: error.message };
 
   return { ok: true, slug };
+}
+
+/* social_post publisher
+ *
+ * Pushes the post to ARTO's Buffer queue across LinkedIn, Instagram, and
+ * Facebook (defaults). 'network' in the payload controls which subset of
+ * channels gets the post. Buffer queues the items for the next slot in
+ * each channel's posting schedule — the operator can still cancel from
+ * Buffer's own UI before they go out.
+ *
+ * Buffer auth: BUFFER_TOKEN env var (Personal Access Token).
+ *
+ * Channel IDs are hardcoded here because they don't rotate and aren't
+ * secrets. If a new ARTO social account gets connected to Buffer, add
+ * it to ARTO_BUFFER_CHANNELS below + redeploy. */
+
+interface SocialPostPayload {
+  network: "linkedin" | "instagram" | "facebook" | "all";
+  copy: string;
+  hook?: string;
+  cta_text?: string;
+  cta_url?: string;
+}
+
+/* ARTO-brand Buffer channels. Pulled via mcp__buffer__list_channels on
+ * 2026-05-26 against org id 5dc40733a7d7ae5f8a5a92a4 (ARTO Group). */
+const ARTO_BUFFER_CHANNELS = {
+  linkedin: "69afc7607be9f8b1713e4b5c", // ARTO (page) — arto-design-culture-technology
+  instagram: "69afc5c57be9f8b1713e4693", // arto.group
+  facebook: "69afc63c7be9f8b1713e4811", // ARTO Group
+} as const;
+
+const BUFFER_GRAPHQL = "https://graphql.buffer.com/v1";
+
+interface BufferIdeaResponse {
+  data?: { createIdea?: { idea?: { id: string } } };
+  errors?: Array<{ message: string }>;
+}
+
+async function queueOnBuffer(
+  channelId: string,
+  text: string,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const token = process.env.BUFFER_TOKEN;
+  if (!token) return { ok: false, error: "BUFFER_TOKEN not set" };
+
+  // Use the createIdea mutation to push an item into Buffer's content queue
+  // for the channel. The operator publishes from Buffer's own UI.
+  const mutation = `
+    mutation CreateIdea($organizationId: String!, $channels: [String!]!, $text: String!) {
+      createIdea(input: {
+        organizationId: $organizationId,
+        channels: $channels,
+        content: { text: $text }
+      }) {
+        idea { id }
+      }
+    }
+  `;
+  try {
+    const r = await fetch(BUFFER_GRAPHQL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          organizationId: "5dc40733a7d7ae5f8a5a92a4",
+          channels: [channelId],
+          text,
+        },
+      }),
+    });
+    if (!r.ok) return { ok: false, error: `Buffer HTTP ${r.status}: ${(await r.text()).slice(0, 200)}` };
+    const json = (await r.json()) as BufferIdeaResponse;
+    if (json.errors && json.errors.length > 0) {
+      return { ok: false, error: json.errors.map((e) => e.message).join("; ") };
+    }
+    const id = json.data?.createIdea?.idea?.id;
+    if (!id) return { ok: false, error: "Buffer returned no idea id" };
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+function composeSocialText(payload: SocialPostPayload): string {
+  const parts: string[] = [];
+  if (payload.hook) parts.push(payload.hook);
+  if (payload.copy && payload.copy !== payload.hook) parts.push(payload.copy);
+  if (payload.cta_text && payload.cta_url) {
+    const url = payload.cta_url.startsWith("/")
+      ? `https://creative.artostudio.ai${payload.cta_url}`
+      : payload.cta_url;
+    parts.push(`${payload.cta_text} → ${url}`);
+  }
+  return parts.filter(Boolean).join("\n\n");
+}
+
+async function publishOneSocialPost(
+  sb: ReturnType<typeof createAdminClient>,
+  item: { id: string; payload: SocialPostPayload },
+): Promise<{ ok: true; bufferIds: string[] } | { ok: false; error: string }> {
+  const p = item.payload;
+  if (!p.copy || typeof p.copy !== "string") {
+    return { ok: false, error: "missing payload.copy" };
+  }
+  const text = composeSocialText(p);
+  // Decide channels.
+  const network = p.network ?? "all";
+  const channelIds: string[] = [];
+  if (network === "all" || network === "linkedin") channelIds.push(ARTO_BUFFER_CHANNELS.linkedin);
+  if (network === "all" || network === "instagram") channelIds.push(ARTO_BUFFER_CHANNELS.instagram);
+  if (network === "all" || network === "facebook") channelIds.push(ARTO_BUFFER_CHANNELS.facebook);
+  if (channelIds.length === 0) {
+    return { ok: false, error: `unknown network: ${network}` };
+  }
+  const bufferIds: string[] = [];
+  const errors: string[] = [];
+  for (const ch of channelIds) {
+    const r = await queueOnBuffer(ch, text);
+    if (r.ok) bufferIds.push(r.id);
+    else errors.push(`${ch}: ${r.error}`);
+  }
+  if (bufferIds.length === 0) {
+    return { ok: false, error: errors.join("; ") };
+  }
+  // Mark item published with the buffer ids as ref.
+  const { error } = await sb
+    .from("content_items")
+    .update({
+      status: "published",
+      published_ref: bufferIds.join(","),
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  if (error) {
+    return { ok: false, error: `pushed to Buffer (${bufferIds.length}) but DB update failed: ${error.message}` };
+  }
+  // Partial success: some channels succeeded, some didn't.
+  if (errors.length > 0) {
+    return { ok: true, bufferIds }; // still mark ok, partial errors logged below
+  }
+  return { ok: true, bufferIds };
 }

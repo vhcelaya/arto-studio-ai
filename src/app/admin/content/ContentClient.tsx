@@ -48,7 +48,15 @@ function expectedDurationLabel(count: number): string {
 
 function previewTitle(it: ContentItem): string {
   const p = it.payload as Record<string, string>;
-  return (p.title_en || p.title_es || p.subject || p.hero_en || it.id.slice(0, 8)) as string;
+  return (
+    p.title_en ||
+    p.title_es ||
+    p.subject ||
+    p.hero_en ||
+    p.hook ||
+    (typeof p.copy === "string" ? p.copy.slice(0, 60) : "") ||
+    it.id.slice(0, 8)
+  );
 }
 
 function previewSnippet(it: ContentItem): string {
@@ -217,17 +225,18 @@ export default function ContentClient() {
     if (failed > 0) alert(`Terminé: ${i - failed} OK, ${failed} fallaron`);
   }
 
-  async function publishApprovedByType(targetType: "prompt" | "blog_post") {
+  async function publishApprovedByType(targetType: "prompt" | "blog_post" | "social_post") {
     const approved = items.filter((i) => i.status === "approved" && i.type === targetType);
+    const typeLabels: Record<typeof targetType, { plural: string; dest: string }> = {
+      prompt: { plural: "prompts", dest: "a la biblioteca" },
+      blog_post: { plural: "blog posts", dest: "a /learn" },
+      social_post: { plural: "social posts", dest: "a Buffer (LinkedIn + IG + Facebook ARTO)" },
+    };
+    const label = typeLabels[targetType];
     if (approved.length === 0) {
-      return alert(
-        targetType === "prompt"
-          ? "No hay prompts aprobados pendientes de publicar."
-          : "No hay blog posts aprobados pendientes de publicar.",
-      );
+      return alert(`No hay ${label.plural} aprobados pendientes de publicar.`);
     }
-    const destination = targetType === "prompt" ? "a la biblioteca" : "a /learn";
-    if (!confirm(`Publicar ${approved.length} ${targetType === "prompt" ? "prompts" : "blog posts"} ${destination}?`)) return;
+    if (!confirm(`Publicar ${approved.length} ${label.plural} ${label.dest}?`)) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/content/publish", {
@@ -238,12 +247,11 @@ export default function ContentClient() {
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
       const r = (await res.json()) as {
         published: number;
-        results: Array<{ status: string; prompt_id?: string; slug?: string; error?: string }>;
+        results: Array<{ status: string; prompt_id?: string; slug?: string; buffer_ids?: string[]; error?: string }>;
       };
       const failed = r.results.filter((x) => x.status === "failed").length;
       await load();
-      const label = targetType === "prompt" ? "prompts" : "blog posts";
-      alert(`${r.published} ${label} publicados${failed > 0 ? ` (${failed} fallaron)` : ""}.`);
+      alert(`${r.published} ${label.plural} publicados${failed > 0 ? ` (${failed} fallaron)` : ""}.`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Publish failed");
     } finally {
@@ -295,6 +303,7 @@ export default function ContentClient() {
             >
               <option value="prompt">Prompt para biblioteca</option>
               <option value="blog_post">Blog /learn</option>
+              <option value="social_post">Social post (LinkedIn/IG/FB)</option>
             </select>
           </div>
           <div>
@@ -397,6 +406,13 @@ export default function ContentClient() {
         >
           Publicar blog posts aprobados → /learn
         </button>
+        <button
+          onClick={() => publishApprovedByType("social_post")}
+          disabled={busy}
+          className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
+        >
+          Publicar social posts aprobados → Buffer
+        </button>
         {bulkProgress && (
           <span className="text-zinc-500">
             {bulkProgress.label} {bulkProgress.done}/{bulkProgress.total}
@@ -415,7 +431,7 @@ export default function ContentClient() {
           <option value="all">Tipo: todos</option>
           <option value="prompt">Prompts</option>
           <option value="blog_post">Blog /learn</option>
-          <option value="social_post">Social</option>
+          <option value="social_post">Social posts</option>
           <option value="newsletter">Newsletter</option>
         </select>
         <select
@@ -530,9 +546,18 @@ const FIELDS_BLOG: FieldSpec[] = [
   { key: "use_cases_es", label: "Use cases (ES, one per line)", kind: "csv", rows: 6 },
 ];
 
+const FIELDS_SOCIAL: FieldSpec[] = [
+  { key: "network", label: "Network (linkedin / instagram / facebook / all)", kind: "input" },
+  { key: "hook", label: "Hook (primeras 5-8 palabras, debe detener el scroll)", kind: "input" },
+  { key: "copy", label: "Copy completo (80-600 chars según plataforma)", kind: "textarea", rows: 6 },
+  { key: "cta_text", label: "CTA texto (3-5 palabras)", kind: "input" },
+  { key: "cta_url", label: "CTA URL (relativo: /prompts, /pricing, etc)", kind: "input" },
+];
+
 function fieldsFor(type: ContentType): FieldSpec[] {
   if (type === "prompt") return FIELDS_PROMPT;
   if (type === "blog_post") return FIELDS_BLOG;
+  if (type === "social_post") return FIELDS_SOCIAL;
   return [];
 }
 

@@ -94,8 +94,30 @@ Constraints:
 
 Return a JSON object: { "items": [ ... ] }`;
 
+const SOCIAL_POST_INSTRUCTIONS = `Generate {count} social media posts for ARTO Studio AI, ALL in {language}.
+
+Each item is one post designed to be cross-published to LinkedIn (page), Instagram (business), and Facebook (page). The shape:
+{
+  "network": "linkedin" | "instagram" | "facebook" | "all",
+  "copy": "...",
+  "hook": "...",
+  "cta_text": "...",
+  "cta_url": "..."
+}
+
+Constraints:
+- network='all' means the same copy works on all 3 channels. Use 'all' when copy is platform-neutral. Otherwise pick the best fit.
+- copy: 80-280 characters for Twitter-style brevity; up to 600 chars total if the platform allows (LinkedIn does). Never include hashtag walls (max 3 hashtags). Never use #ai #marketing #branding — too generic.
+- hook: the FIRST 5-8 words of the post — must stop the scroll. NOT a question. NOT 'Are you...?'. Direct, concrete, surprising or specific.
+- cta_text: 3-5 words. Examples: 'Browse the catalog', 'Try Brand Roast', 'Read the guide'.
+- cta_url: must be one of /prompts, /pricing, /work, /roast, /learn, /learn/<slug>. NEVER an external URL.
+- Tone rules apply (no banned words, tú-form for Spanish, no fluff).
+- Lean into ARTO's concrete identity: 3,000 bilingual prompts, 15+ years with Google/Nike/Uber, methodology not motivation.
+
+Return a JSON object: { "items": [ ... ] }`;
+
 interface GenerateBody {
-  type: "prompt" | "blog_post";
+  type: "prompt" | "blog_post" | "social_post";
   count?: number;
   language?: "en" | "es";
   brief?: string;
@@ -127,8 +149,11 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as GenerateBody | null;
   const type = body?.type;
-  if (type !== "prompt" && type !== "blog_post") {
-    return NextResponse.json({ error: "type must be 'prompt' or 'blog_post'" }, { status: 400 });
+  if (type !== "prompt" && type !== "blog_post" && type !== "social_post") {
+    return NextResponse.json(
+      { error: "type must be 'prompt', 'blog_post', or 'social_post'" },
+      { status: 400 },
+    );
   }
   const count = Math.max(1, Math.min(MAX_COUNT, body?.count ?? 3));
   const language: "en" | "es" = body?.language === "es" ? "es" : "en";
@@ -138,7 +163,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
   }
 
-  const template = type === "prompt" ? PROMPT_INSTRUCTIONS : BLOG_POST_INSTRUCTIONS;
+  const template =
+    type === "prompt"
+      ? PROMPT_INSTRUCTIONS
+      : type === "blog_post"
+      ? BLOG_POST_INSTRUCTIONS
+      : SOCIAL_POST_INSTRUCTIONS;
   const instructions = template.replace("{count}", String(count)).replace("{language}", language);
   const context = await fetchContextSignals();
   const briefBlock = brief ? `\n\nOperator brief: ${brief}` : "";
@@ -234,8 +264,28 @@ function normalizeTitle(s: string): string {
 
 async function buildAntiList(
   sb: ReturnType<typeof createAdminClient>,
-  type: "prompt" | "blog_post",
+  type: "prompt" | "blog_post" | "social_post",
 ): Promise<string> {
+  if (type === "social_post") {
+    // Pull the last 30 published social posts so Claude doesn't recycle
+    // hooks or copy. Lighter dedup than prompts/blogs because social posts
+    // are intentionally repeatable — but we don't want word-for-word copies.
+    const { data } = await sb
+      .from("content_items")
+      .select("payload")
+      .eq("type", "social_post")
+      .in("status", ["published", "approved", "draft"])
+      .order("updated_at", { ascending: false })
+      .limit(30);
+    if (!data || data.length === 0) return "";
+    const lines = data
+      .map((row) => {
+        const p = row.payload as Record<string, string>;
+        return `- ${p.hook ?? "(no hook)"} | ${(p.copy ?? "").slice(0, 80)}`;
+      })
+      .join("\n");
+    return `\n\nRecent ARTO social posts — DO NOT repeat the same hook or angle:\n${lines}`;
+  }
   if (type === "prompt") {
     const { data } = await sb.from("prompts").select("id, title_en, title_es").limit(5000);
     if (!data || data.length === 0) return "";
@@ -281,10 +331,37 @@ interface DedupResult {
 
 async function dedupCheck(
   sb: ReturnType<typeof createAdminClient>,
-  type: "prompt" | "blog_post",
+  type: "prompt" | "blog_post" | "social_post",
   items: unknown[],
 ): Promise<DedupResult> {
   const result: DedupResult = { kept: [], rejected: [] };
+
+  if (type === "social_post") {
+    // Light dedup for social: only reject if the FIRST 40 chars of copy
+    // match an existing post verbatim. Social hooks can intentionally
+    // riff on each other; we just block exact-clone laziness.
+    const { data: existing } = await sb
+      .from("content_items")
+      .select("payload")
+      .eq("type", "social_post")
+      .limit(200);
+    const taken = new Set<string>();
+    for (const row of existing ?? []) {
+      const p = row.payload as Record<string, string>;
+      if (p.copy) taken.add(normalizeTitle(String(p.copy).slice(0, 40)));
+    }
+    for (const raw of items) {
+      const payload = raw as Record<string, string>;
+      const key = payload.copy ? normalizeTitle(String(payload.copy).slice(0, 40)) : "";
+      if (key && taken.has(key)) {
+        result.rejected.push({ payload: raw as Record<string, unknown>, reason: "near-duplicate copy" });
+        continue;
+      }
+      if (key) taken.add(key);
+      result.kept.push(raw as Record<string, unknown>);
+    }
+    return result;
+  }
 
   if (type === "prompt") {
     const { data: existing } = await sb.from("prompts").select("title_en, title_es");
