@@ -289,10 +289,19 @@ const ARTO_BUFFER_CHANNELS = {
   facebook: "69afc63c7be9f8b1713e4811", // ARTO Group
 } as const;
 
-const BUFFER_GRAPHQL = "https://graphql.buffer.com/v1";
+const BUFFER_GRAPHQL = "https://api.buffer.com/graphql";
 
-interface BufferIdeaResponse {
-  data?: { createIdea?: { idea?: { id: string } } };
+/* Buffer GraphQL response shape varies per mutation. createPost returns
+ * either PostActionSuccess (which has { post: { id } }) or one of the
+ * MutationError types. The union resolves at runtime via __typename. */
+interface BufferPostResponse {
+  data?: {
+    createPost?: {
+      __typename?: string;
+      post?: { id: string };
+      message?: string;
+    };
+  };
   errors?: Array<{ message: string }>;
 }
 
@@ -303,16 +312,32 @@ async function queueOnBuffer(
   const token = process.env.BUFFER_TOKEN;
   if (!token) return { ok: false, error: "BUFFER_TOKEN not set" };
 
-  // Use the createIdea mutation to push an item into Buffer's content queue
-  // for the channel. The operator publishes from Buffer's own UI.
+  // createPost mutation with mode=addToQueue + schedulingType=automatic
+  // drops the post at the back of the channel's queue. Buffer fires it on
+  // the next slot in that channel's posting schedule. The operator can
+  // cancel/edit from Buffer's own UI before it goes out — same safety
+  // model as outreach drafts.
   const mutation = `
-    mutation CreateIdea($organizationId: String!, $channels: [String!]!, $text: String!) {
-      createIdea(input: {
-        organizationId: $organizationId,
-        channels: $channels,
-        content: { text: $text }
+    mutation CreatePost(
+      $channelId: ChannelId!
+      $text: String!
+    ) {
+      createPost(input: {
+        channelId: $channelId
+        text: $text
+        schedulingType: automatic
+        mode: addToQueue
+        assets: []
+        source: "asai-engine"
       }) {
-        idea { id }
+        __typename
+        ... on PostActionSuccess { post { id } }
+        ... on NotFoundError    { message }
+        ... on UnauthorizedError { message }
+        ... on UnexpectedError   { message }
+        ... on RestProxyError    { message }
+        ... on LimitReachedError { message }
+        ... on InvalidInputError { message }
       }
     }
   `;
@@ -325,21 +350,23 @@ async function queueOnBuffer(
       },
       body: JSON.stringify({
         query: mutation,
-        variables: {
-          organizationId: "5dc40733a7d7ae5f8a5a92a4",
-          channels: [channelId],
-          text,
-        },
+        variables: { channelId, text },
       }),
     });
-    if (!r.ok) return { ok: false, error: `Buffer HTTP ${r.status}: ${(await r.text()).slice(0, 200)}` };
-    const json = (await r.json()) as BufferIdeaResponse;
+    if (!r.ok) {
+      const body = (await r.text()).slice(0, 200);
+      return { ok: false, error: `Buffer HTTP ${r.status}: ${body}` };
+    }
+    const json = (await r.json()) as BufferPostResponse;
     if (json.errors && json.errors.length > 0) {
       return { ok: false, error: json.errors.map((e) => e.message).join("; ") };
     }
-    const id = json.data?.createIdea?.idea?.id;
-    if (!id) return { ok: false, error: "Buffer returned no idea id" };
-    return { ok: true, id };
+    const cp = json.data?.createPost;
+    if (!cp) return { ok: false, error: "Buffer returned no createPost payload" };
+    if (cp.__typename === "PostActionSuccess" && cp.post?.id) {
+      return { ok: true, id: cp.post.id };
+    }
+    return { ok: false, error: cp.message ?? `createPost returned ${cp.__typename ?? "unknown"}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
