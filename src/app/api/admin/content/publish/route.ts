@@ -281,12 +281,13 @@ interface SocialPostPayload {
   cta_url?: string;
 }
 
-/* ARTO-brand Buffer channels. Pulled via mcp__buffer__list_channels on
- * 2026-05-26 against org id 5dc40733a7d7ae5f8a5a92a4 (ARTO Group). */
+/* ARTO-brand Buffer channels. IDs refreshed 2026-06-01 after Victor
+ * reconnected ARTO channels post-billing reactivation. Buffer assigns a
+ * NEW id per reconnection, so any channel re-link → bump these. */
 const ARTO_BUFFER_CHANNELS = {
-  linkedin: "69afc7607be9f8b1713e4b5c", // ARTO (page) — arto-design-culture-technology
-  instagram: "69afc5c57be9f8b1713e4693", // arto.group
-  facebook: "69afc63c7be9f8b1713e4811", // ARTO Group
+  linkedin: "6a1dde94c687a22dd44cf11a", // ARTO (page) — arto-design-culture-technology
+  instagram: "6a1dddcbc687a22dd44cedad", // arto.group
+  facebook: "6a1dde71c687a22dd44cf087", // ARTO Group
 } as const;
 
 const BUFFER_GRAPHQL = "https://api.buffer.com/graphql";
@@ -312,11 +313,15 @@ async function queueOnBuffer(
   const token = process.env.BUFFER_TOKEN;
   if (!token) return { ok: false, error: "BUFFER_TOKEN not set" };
 
-  // createPost mutation with mode=addToQueue + schedulingType=automatic
-  // drops the post at the back of the channel's queue. Buffer fires it on
-  // the next slot in that channel's posting schedule. The operator can
-  // cancel/edit from Buffer's own UI before it goes out — same safety
-  // model as outreach drafts.
+  // createPost with saveToDraft=true lands the post in Buffer's Drafts
+  // tab for that channel. It DOES NOT enter the publishing queue — Victor
+  // has to open Buffer, review, and click publish/schedule for it to go
+  // live. This adds a fourth approval gate after our 3 (generate, edit,
+  // approve in /admin/content). Same safety model as outreach drafts but
+  // even tighter: the operator can still bail at the very last click.
+  //
+  // To flip this back to auto-queue behavior later, swap saveToDraft:true
+  // for mode: addToQueue (and drop saveToDraft).
   const mutation = `
     mutation CreatePost(
       $channelId: ChannelId!
@@ -329,6 +334,7 @@ async function queueOnBuffer(
         mode: addToQueue
         assets: []
         source: "asai-engine"
+        saveToDraft: true
       }) {
         __typename
         ... on PostActionSuccess { post { id } }
