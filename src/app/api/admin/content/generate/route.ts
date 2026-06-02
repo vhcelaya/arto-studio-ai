@@ -115,7 +115,7 @@ Constraints:
 - meta_description 120-160 chars
 - hero: one strong headline (under 80 chars)
 - intro: 80-160 words, sets up what the AI can do in this vertical in 2026 (this is the article opener, the hook)
-- body: 500-800 words MINIMUM in each language. Editorial article body picking up where the intro left off. Structure as 4-6 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). Declarative voice (ARTO brand voice rules apply: no em-dashes, no antithesis tricks, no banned words, tú-form Spanish). Include concrete examples, methodology, named techniques. Avoid "in conclusion", "in summary", or any wrap-up sentence — let the last paragraph end on a claim, not a recap. Do NOT repeat the intro content in the body — the body advances the thesis, it does not restate it.
+- body: **HARD MINIMUM 500 words in EACH language, target 650-800 words.** This is a hard floor enforced server-side, posts below 500 words get rejected. Editorial article body picking up where the intro left off. Structure as 5-8 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). EACH paragraph must be at least 80-120 words on its own — do NOT pad with short paragraphs to inflate the count, expand the thesis with substance: name concrete tools / techniques / clients, walk through methodology step by step, give examples. Declarative voice (ARTO brand voice rules apply: no em-dashes, no antithesis tricks, no banned words, tú-form Spanish). Avoid "in conclusion", "in summary", or any wrap-up sentence — let the last paragraph end on a claim, not a recap. Do NOT repeat the intro content — the body advances the thesis, it does not restate it. Before submitting, count your own words: if body_en or body_es is under 500 words, expand it BEFORE returning the JSON.
 - use_cases: 4-6 concrete situations where an operator uses prompts in this vertical
 
 IMAGE BRIEF — chosen by you, the writer.
@@ -324,7 +324,34 @@ export async function POST(request: NextRequest) {
    * operator sees what was filtered. */
   const voiced = applyVoiceScrub(type, dedup.kept);
 
-  const rowsToInsert = voiced.kept.map((payload) => ({
+  /* Length scrub — blog_post body floor.
+   * Claude regularly under-shoots the 500-word minimum (we measured
+   * 237 / 310 words on a fresh sample even with the prompt explicit).
+   * Reject anything below the floor so the dashboard never accumulates
+   * thin articles. Both languages must meet the bar, otherwise the
+   * operator sees a rejection with the actual count and can regenerate. */
+  const BLOG_BODY_MIN_WORDS = 500;
+  const countWords = (s: unknown) => typeof s === "string" ? s.trim().split(/\s+/).filter(Boolean).length : 0;
+  const lengthScrubKept: typeof voiced.kept = [];
+  const lengthScrubRejected: typeof voiced.rejected = [];
+  if (type === "blog_post") {
+    for (const item of voiced.kept) {
+      const wEn = countWords(item.body_en);
+      const wEs = countWords(item.body_es);
+      if (wEn < BLOG_BODY_MIN_WORDS || wEs < BLOG_BODY_MIN_WORDS) {
+        lengthScrubRejected.push({
+          payload: item,
+          reason: `length: body too short (en=${wEn}, es=${wEs}, min=${BLOG_BODY_MIN_WORDS})`,
+        });
+      } else {
+        lengthScrubKept.push(item);
+      }
+    }
+  } else {
+    lengthScrubKept.push(...voiced.kept);
+  }
+
+  const rowsToInsert = lengthScrubKept.map((payload) => ({
     type,
     status: "draft" as const,
     language,
@@ -341,6 +368,7 @@ export async function POST(request: NextRequest) {
   const allRejections = [
     ...dedup.rejected,
     ...voiced.rejected.map((r) => ({ ...r, reason: `voice: ${r.reason}` })),
+    ...lengthScrubRejected,
   ];
   return NextResponse.json({
     inserted: inserted.length,
