@@ -472,21 +472,25 @@ async function publishOneSocialPost(
       p.image_prompt = gen.image_prompt;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // If image generation fails AND IG/FB is in the target set, bail
-      // entirely — Buffer would reject those silently. For LinkedIn-only,
-      // continue without an image.
-      const needsImage = channelKeys.some(
-        (k) => k === "instagram" || k === "facebook",
-      );
-      if (needsImage) {
-        return {
-          ok: false,
-          error: `image generation failed and IG/FB require an image: ${msg}`,
-        };
-      }
-      // LinkedIn-only with image failure: continue text-only.
-      imageUrl = undefined;
+      // ARTO policy: every social post on every network MUST carry an
+      // image. There is no text-only path — a draft without a visual is
+      // off-brand. If image generation fails (Mac Mini + OpenAI both
+      // down), bail and let the operator retry once the upstream is
+      // healthy again.
+      return {
+        ok: false,
+        error: `image generation failed (both Higgsfield + OpenAI): ${msg}`,
+      };
     }
+  }
+  // Belt and suspenders — if we somehow exited the try block without an
+  // imageUrl (e.g. generateAndStoreImage returns undefined silently),
+  // refuse to publish. Same brand reason.
+  if (!imageUrl) {
+    return {
+      ok: false,
+      error: "no image_url available after generation, refusing to publish text-only",
+    };
   }
 
   const altText = altTextFor(p);
