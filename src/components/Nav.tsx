@@ -163,6 +163,9 @@ export default function Nav({ user, locale, nav, isAdmin = false }: Props) {
         <Link href={lp("/work")} className="text-neutral-700 hover:text-neutral-900">
           {nav.work}
         </Link>
+        <Link href={lp("/learn")} className="text-neutral-700 hover:text-neutral-900">
+          {nav.learn}
+        </Link>
         <Link href={lp("/pricing")} className="text-neutral-700 hover:text-neutral-900">
           {nav.pricing}
         </Link>
@@ -254,6 +257,9 @@ export default function Nav({ user, locale, nav, isAdmin = false }: Props) {
             <div className="my-1 border-t border-neutral-100" />
             <Link href={lp("/work")} onClick={() => setMobileOpen(false)} className="text-neutral-700">
               {nav.work}
+            </Link>
+            <Link href={lp("/learn")} onClick={() => setMobileOpen(false)} className="text-neutral-700">
+              {nav.learn}
             </Link>
             <Link href={lp("/pricing")} onClick={() => setMobileOpen(false)} className="text-neutral-700">
               {nav.pricing}
