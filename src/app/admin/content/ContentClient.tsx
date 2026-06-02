@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
 type ContentType = "prompt" | "blog_post" | "social_post" | "newsletter";
 type Status = "draft" | "approved" | "published" | "skipped";
@@ -21,6 +21,20 @@ interface ContentItem {
   created_at: string;
   updated_at: string;
 }
+
+const STATUS_SECTION_LABEL: Record<Status, string> = {
+  draft: "Drafts",
+  approved: "Aprobados",
+  published: "Publicados",
+  skipped: "Saltados",
+};
+
+const STATUS_SECTION_SUBLABEL: Record<Status, string> = {
+  draft: "primeras versiones generadas, sin revisar",
+  approved: "revisados y listos para publicar",
+  published: "ya están en /prompts, /learn o Buffer",
+  skipped: "descartados durante revisión",
+};
 
 const STATUS_PILL: Record<Status, string> = {
   draft: "bg-amber-100 text-amber-800",
@@ -153,6 +167,31 @@ export default function ContentClient() {
       return true;
     });
   }, [items, typeFilter, statusFilter]);
+
+  /* Items grouped by status for the section-view rendering. Order:
+   * draft → approved → published → skipped. The draft section shows
+   * up first because that's where the operator works most. */
+  const groupedVisible = useMemo(() => {
+    const groups: Record<Status, ContentItem[]> = {
+      draft: [],
+      approved: [],
+      published: [],
+      skipped: [],
+    };
+    for (const it of visible) groups[it.status].push(it);
+    // Sort each group by updated_at desc.
+    for (const k of Object.keys(groups) as Status[]) {
+      groups[k].sort((a, b) => (a.updated_at > b.updated_at ? -1 : 1));
+    }
+    return groups;
+  }, [visible]);
+
+  /* When statusFilter === "all" we render the 4 section headers and
+   * each list under its own header. When the user picks a specific
+   * status from the dropdown, we revert to the flat single-list view
+   * (no headers needed since the user is explicitly drilling into one
+   * status). */
+  const showSections = statusFilter === "all";
 
   const summary = useMemo(() => {
     return {
@@ -636,54 +675,50 @@ export default function ContentClient() {
         </div>
       )}
 
-      {/* Items list */}
+      {/* Items list.
+        *
+        * When statusFilter === "all" we render four titled sections
+        * (Drafts / Aprobados / Publicados / Skipped) so the operator
+        * can see the pipeline shape at a glance and reach into each
+        * stage. When a specific status is selected from the dropdown
+        * we revert to the flat single-list view (header would be
+        * redundant). */}
       {loading ? (
         <p className="text-sm text-zinc-500">Cargando…</p>
       ) : visible.length === 0 ? (
         <p className="text-sm text-zinc-500">No hay items que coincidan con esos filtros.</p>
-      ) : (
-        <div className="space-y-2">
-          {visible.map((it) => {
-            const checked = selectedIds.has(it.id);
+      ) : showSections ? (
+        <div className="space-y-8">
+          {(["draft", "approved", "published", "skipped"] as Status[]).map((s) => {
+            const list = groupedVisible[s];
+            if (list.length === 0) return null;
             return (
-              <article
-                key={it.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-4 transition hover:border-zinc-400 ${
-                  checked ? "border-zinc-900 ring-1 ring-zinc-900/20" : "border-zinc-200"
-                }`}
-                onClick={() => setOpenId(it.id)}
-              >
-                {/* Checkbox — stops click propagation so clicking it doesn't
-                  * open the drawer. */}
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleSelected(it.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-1 h-4 w-4 cursor-pointer accent-zinc-900"
-                  aria-label={`Seleccionar ${previewTitle(it)}`}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700">
-                      {TYPE_LABEL[it.type]}
-                    </span>
-                    <span className={`rounded-full ${STATUS_PILL[it.status]} px-2 py-0.5 font-semibold`}>
-                      {it.status}
-                      {it.edited_by_human && <span className="ml-1">✎</span>}
-                    </span>
-                    <span className="text-zinc-400">{it.language.toUpperCase()}</span>
-                    {it.published_ref && <span className="text-zinc-400">→ {it.published_ref}</span>}
-                  </div>
-                  <h3 className="mt-1.5 truncate text-sm font-semibold text-zinc-900">{previewTitle(it)}</h3>
-                  <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{previewSnippet(it)}</p>
+              <section key={s}>
+                <div className="mb-2 flex items-baseline gap-2">
+                  <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-900">
+                    {STATUS_SECTION_LABEL[s]}
+                  </h2>
+                  <span className={`rounded-full ${STATUS_PILL[s]} px-2 py-0.5 text-[10px] font-semibold`}>
+                    {list.length}
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    {STATUS_SECTION_SUBLABEL[s]}
+                  </span>
                 </div>
-                <div className="text-right text-[10px] text-zinc-400">
-                  {new Date(it.updated_at).toLocaleDateString("es-MX", { month: "short", day: "numeric" })}
+                <div className="space-y-2">
+                  {list.map((it) =>
+                    renderItem(it, selectedIds, toggleSelected, setOpenId),
+                  )}
                 </div>
-              </article>
+              </section>
             );
           })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((it) =>
+            renderItem(it, selectedIds, toggleSelected, setOpenId),
+          )}
         </div>
       )}
 
@@ -1263,5 +1298,52 @@ function ImageBriefControls({
         Cambia controles → click "Regenerar imagen" arriba para aplicarlos.
       </p>
     </div>
+  );
+}
+
+/* ---------- renderItem ---------- */
+
+function renderItem(
+  it: ContentItem,
+  selectedIds: Set<string>,
+  toggleSelected: (id: string) => void,
+  setOpenId: (id: string) => void,
+): ReactElement {
+  const checked = selectedIds.has(it.id);
+  return (
+    <article
+      key={it.id}
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-4 transition hover:border-zinc-400 ${
+        checked ? "border-zinc-900 ring-1 ring-zinc-900/20" : "border-zinc-200"
+      }`}
+      onClick={() => setOpenId(it.id)}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => toggleSelected(it.id)}
+        onClick={(e) => e.stopPropagation()}
+        className="mt-1 h-4 w-4 cursor-pointer accent-zinc-900"
+        aria-label={`Seleccionar ${previewTitle(it)}`}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700">
+            {TYPE_LABEL[it.type]}
+          </span>
+          <span className={`rounded-full ${STATUS_PILL[it.status]} px-2 py-0.5 font-semibold`}>
+            {it.status}
+            {it.edited_by_human && <span className="ml-1">✎</span>}
+          </span>
+          <span className="text-zinc-400">{it.language.toUpperCase()}</span>
+          {it.published_ref && <span className="text-zinc-400">→ {it.published_ref}</span>}
+        </div>
+        <h3 className="mt-1.5 truncate text-sm font-semibold text-zinc-900">{previewTitle(it)}</h3>
+        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{previewSnippet(it)}</p>
+      </div>
+      <div className="text-right text-[10px] text-zinc-400">
+        {new Date(it.updated_at).toLocaleDateString("es-MX", { month: "short", day: "numeric" })}
+      </div>
+    </article>
   );
 }
