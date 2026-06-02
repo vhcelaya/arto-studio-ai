@@ -53,6 +53,20 @@ ANTI-PATTERNS — these are AI-tell phrasings. Never use them:
 
 Write declarative statements. State what is, plainly. The reader will feel the contrast on their own.
 
+EDITORIAL FLOW — write paragraphs, not lists of sentences.
+ARTO copy reads as gallery-wall text or a broadsheet feature, not as a sequence of staccato claims. This is the single most common AI tell after em-dashes and antithesis tricks: short, disconnected sentences each making a different point. Avoid it.
+
+Rules for paragraph construction:
+- One paragraph carries one idea, developed across 3-6 sentences. Open with a claim, then EXPAND it: give a reason, show a mechanism, name an example, introduce a tension.
+- Sentence length varies. Mix short (8-12 words) with medium (15-25 words). At least one longer sentence (25-40 words) per paragraph carrying a complete thought through subordination or a relative clause.
+- Use connectors. In Spanish: "porque", "cuando", "lo que pasa es que", "en la práctica", "esto significa que", "el problema viene de", "una vez que", "incluso si", "más allá de", "lo que esto explica es que". In English: "because", "when this happens", "the reason is that", "in practice", "what this means is", "the problem comes from", "once", "even when", "beyond that", "what this explains is".
+- Subordinate clauses are encouraged: "que", "porque", "aunque", "cuando", "donde", "lo que", "lo cual" / "which", "because", "even though", "where", "what". They show thought, not just position.
+- A run of three short declarative sentences back-to-back is a red flag. Rewrite at least one into a longer connected thought.
+- Do NOT open three consecutive sentences with the same word or grammatical structure.
+- A paragraph that is just "Subject verb object. Subject verb object. Subject verb object." reads as AI. Insert connecting tissue.
+
+Editorial register: declarative but expansive. The reader should feel the writer is THINKING through the topic on the page, not listing pre-canned conclusions.
+
 Output STRICT JSON only, no preamble.`;
 
 const PROMPT_INSTRUCTIONS = `Generate {count} prompt-library entries, ALL in {language}.
@@ -115,7 +129,7 @@ Constraints:
 - meta_description 120-160 chars
 - hero: one strong headline (under 80 chars)
 - intro: 80-160 words, sets up what the AI can do in this vertical in 2026 (this is the article opener, the hook)
-- body: **HARD MINIMUM 500 words in EACH language, target 650-800 words.** This is a hard floor enforced server-side, posts below 500 words get rejected. Editorial article body picking up where the intro left off. Structure as 5-8 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). EACH paragraph must be at least 80-120 words on its own — do NOT pad with short paragraphs to inflate the count, expand the thesis with substance: name concrete tools / techniques / clients, walk through methodology step by step, give examples. Declarative voice (ARTO brand voice rules apply: no em-dashes, no antithesis tricks, no banned words, tú-form Spanish). Avoid "in conclusion", "in summary", or any wrap-up sentence — let the last paragraph end on a claim, not a recap. Do NOT repeat the intro content — the body advances the thesis, it does not restate it. Before submitting, count your own words: if body_en or body_es is under 500 words, expand it BEFORE returning the JSON.
+- body: **HARD MINIMUM 500 words in EACH language, target 700-800 words.** Server-side rejection for under 500. Editorial article body. Structure as 5-8 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). EACH paragraph 80-120 words. EDITORIAL FLOW MANDATORY: every paragraph develops ONE idea across 3-6 sentences with connectors and varied sentence length. NO runs of three short declarative sentences. NO paragraphs that are lists of claims. Read it back to yourself after writing: if any paragraph sounds like "Subject verb object. Subject verb object. Subject verb object." rewrite it. Name concrete tools (Claude, Midjourney, ElevenLabs, Figma, Notion, Linear), techniques (positioning matrix, NOT-table, brand spine), brands (Neefter, Crecy, Google, Nike, Uber) when relevant. Walk through methodology step by step. Show mechanism, not conclusion. Avoid "in conclusion", "in summary", "ultimately", "at the end of the day". Do NOT repeat the intro — the body advances the thesis. The last paragraph ends on a claim or a question, not a recap. Before submitting, count your own words: if body_en or body_es is under 500, expand it BEFORE returning.
 - use_cases: 4-6 concrete situations where an operator uses prompts in this vertical
 
 IMAGE BRIEF — chosen by you, the writer.
