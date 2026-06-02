@@ -1,10 +1,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFeaturedPrompts } from "@/lib/supabase/queries";
+import { getFeaturedPrompts, getStats } from "@/lib/supabase/queries";
+import { getRecentBlogPosts, type RecentBlogPost } from "@/lib/learn-pages";
 import { CATEGORY_STYLES, type Prompt } from "@/types/prompt";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+
+/* Round a precise prompt count to a tidy marketing-friendly figure.
+ * Below 1k we show the exact number. Above, we round down to the
+ * nearest 100 and stick a "+" so the public-facing claim never
+ * overstates. Examples: 1842 → "1,800+", 3045 → "3,000+", 12 → "12". */
+function formatPromptCount(n: number): string {
+  if (n < 1000) return String(n);
+  const floored = Math.floor(n / 100) * 100;
+  return `${floored.toLocaleString("en-US")}+`;
+}
 
 /* Each vertical maps to the catalog filter on /prompts. The code stays as
  * the display label, category is the DB enum used in the query. The human
@@ -36,13 +47,27 @@ export default async function HomePage({ params }: Props) {
   const t = dict.home;
   const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
 
-  // Featured prompts from Supabase (graceful fallback to empty if env missing or DB hiccup)
-  let featured: Prompt[] = [];
-  try {
-    featured = await getFeaturedPrompts(6);
-  } catch {
-    featured = [];
-  }
+  // Pull featured prompts + live total count + latest blog posts in
+  // parallel. Each call has its own graceful fallback so a single
+  // upstream hiccup doesn't blank-page the home.
+  const [featuredRes, statsRes, recentBlogsRes] = await Promise.allSettled([
+    getFeaturedPrompts(6),
+    getStats(),
+    getRecentBlogPosts(6),
+  ]);
+  const featured: Prompt[] =
+    featuredRes.status === "fulfilled" ? featuredRes.value : [];
+  const promptsTotalRaw =
+    statsRes.status === "fulfilled" ? statsRes.value.total : 3000;
+  const promptsTotal = formatPromptCount(promptsTotalRaw);
+  const recentBlogs: RecentBlogPost[] =
+    recentBlogsRes.status === "fulfilled" ? recentBlogsRes.value : [];
+
+  // Tiny interpolation — these dict keys carry "{n}" where the prompt
+  // count belongs. We keep marketing copy in dictionaries.ts and inject
+  // the live number here so the public-facing claim stays accurate as
+  // the catalog grows.
+  const withCount = (s: string) => s.replace(/\{n\}/g, promptsTotal);
 
   // Pick the title in the active locale (Prompt type has both title_en and title_es).
   const promptTitle = (p: Prompt) => (locale === "es" ? p.title_es : p.title_en);
@@ -227,7 +252,7 @@ export default async function HomePage({ params }: Props) {
               <span className="mr-1">✨</span> {t.featured_h2}
             </h2>
             <Link href={lp("/prompts")} className="text-sm text-neutral-500 hover:text-neutral-900">
-              {t.featured_see_all}
+              {withCount(t.featured_see_all)}
             </Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -280,6 +305,57 @@ export default async function HomePage({ params }: Props) {
           ))}
         </div>
       </section>
+
+      {/* LATEST FROM /LEARN
+        *
+        * Most recent blog_posts the Content Factory has published.
+        * Each card shows the brand-faithful image generated alongside
+        * the post + the locale-correct title. Rendered only when there
+        * is at least one post with an image; the helper filters out
+        * imageless rows so the grid never breaks. */}
+      {recentBlogs.length > 0 && (
+        <section className="border-t border-neutral-200 py-16">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t.blogs_h2}</h2>
+              <p className="mt-2 max-w-xl text-sm text-neutral-500">{t.blogs_subtitle}</p>
+            </div>
+            <Link
+              href={lp("/learn")}
+              className="whitespace-nowrap text-sm text-neutral-500 hover:text-neutral-900"
+            >
+              {t.blogs_see_all}
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recentBlogs.map((b) => (
+              <Link
+                key={b.slug}
+                href={lp(`/learn/${b.slug}`)}
+                className="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-sm"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
+                  <Image
+                    src={b.image_url}
+                    alt={locale === "es" ? b.title_es : b.title_en}
+                    fill
+                    sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                    className="object-cover transition group-hover:scale-[1.02]"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold leading-snug text-neutral-900 line-clamp-2">
+                    {locale === "es" ? b.title_es : b.title_en}
+                  </h3>
+                  <p className="mt-2 text-xs text-neutral-500 line-clamp-2">
+                    {locale === "es" ? b.meta_description_es : b.meta_description_en}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* COMPARISON TABLE */}
       <section className="border-t border-neutral-200 py-16">
