@@ -97,6 +97,8 @@ Each is a vertical guide. Strict shape per item:
   "hero_es": "...",
   "intro_en": "...",
   "intro_es": "...",
+  "body_en": "Full editorial article body in English, 500-800 words.",
+  "body_es": "Cuerpo editorial completo en español, 500-800 palabras.",
   "use_cases_en": ["...", "..."],
   "use_cases_es": ["...", "..."],
   "image_brief": {
@@ -112,7 +114,8 @@ Constraints:
 - title under 60 chars
 - meta_description 120-160 chars
 - hero: one strong headline (under 80 chars)
-- intro: 80-160 words, sets up what the AI can do in this vertical in 2026
+- intro: 80-160 words, sets up what the AI can do in this vertical in 2026 (this is the article opener, the hook)
+- body: 500-800 words MINIMUM in each language. Editorial article body picking up where the intro left off. Structure as 4-6 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). Declarative voice (ARTO brand voice rules apply: no em-dashes, no antithesis tricks, no banned words, tú-form Spanish). Include concrete examples, methodology, named techniques. Avoid "in conclusion", "in summary", or any wrap-up sentence — let the last paragraph end on a claim, not a recap. Do NOT repeat the intro content in the body — the body advances the thesis, it does not restate it.
 - use_cases: 4-6 concrete situations where an operator uses prompts in this vertical
 
 IMAGE BRIEF — chosen by you, the writer.

@@ -194,8 +194,13 @@ interface BlogPostPayload {
   hero_es?: string;
   intro_en: string;
   intro_es: string;
+  body_en?: string;
+  body_es?: string;
   use_cases_en?: string[];
   use_cases_es?: string[];
+  image_url?: string;
+  image_prompt?: string;
+  image_brief?: unknown;
 }
 
 const HARDCODED_LEARN_SLUGS = new Set([
@@ -216,7 +221,7 @@ const HARDCODED_LEARN_SLUGS = new Set([
 async function publishOneBlogPost(
   sb: ReturnType<typeof createAdminClient>,
   item: { id: string; payload: BlogPostPayload },
-): Promise<{ ok: true; slug: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; slug: string; imageUrl?: string } | { ok: false; error: string }> {
   const p = item.payload;
   for (const k of ["slug", "category", "title_en", "title_es", "intro_en", "intro_es"] as const) {
     if (!p[k]) return { ok: false, error: `missing payload.${k}` };
@@ -239,6 +244,35 @@ async function publishOneBlogPost(
     return { ok: false, error: `slug '${slug}' already published` };
   }
 
+  /* ARTO policy from Victor (2026-06-02): every blog_post must carry a
+   * brand-faithful hero image when it goes live. If the operator did
+   * not pre-generate one in the drawer, the publisher generates it now
+   * via the same Higgsfield/OpenAI pipeline as social posts. Failure
+   * here blocks the publish so off-brand articles never reach /learn. */
+  let imageUrl = p.image_url;
+  if (!imageUrl) {
+    try {
+      const gen = await generateAndStoreImage(sb, {
+        item_id: item.id,
+        type: "blog_post",
+        payload: p as unknown as Record<string, unknown>,
+      });
+      imageUrl = gen.image_url;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        error: `image generation failed (Higgsfield + OpenAI both unreachable): ${msg}`,
+      };
+    }
+  }
+  if (!imageUrl) {
+    return {
+      ok: false,
+      error: "no image_url available after generation, refusing to publish imageless blog",
+    };
+  }
+
   const { error } = await sb
     .from("content_items")
     .update({
@@ -250,7 +284,7 @@ async function publishOneBlogPost(
     .eq("id", item.id);
   if (error) return { ok: false, error: error.message };
 
-  return { ok: true, slug };
+  return { ok: true, slug, imageUrl };
 }
 
 /* social_post publisher (Module 1 — Buffer integration)
