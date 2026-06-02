@@ -309,10 +309,28 @@ interface BufferPostResponse {
 }
 
 interface QueueArgs {
-  channelId: string;
+  channel: ChannelKey;
   text: string;
   imageUrl?: string;
   altText?: string;
+}
+
+/* Buffer's PostInputMetaData is per-platform and partly required:
+ *   Instagram → { type: PostType!, shouldShareToFeed: Boolean! } both
+ *               REQUIRED — without them createPost errors with
+ *               "Invalid post: Instagram posts require a type
+ *               (post, story, or reel)".
+ *   Facebook  → { type: PostTypeFacebook! } REQUIRED — same shape error.
+ *   LinkedIn  → metadata not required for a plain image+text post.
+ * For a single-asset social cover we always want type=post. */
+function metadataFor(channel: ChannelKey): Record<string, unknown> | null {
+  if (channel === "instagram") {
+    return { instagram: { type: "post", shouldShareToFeed: true } };
+  }
+  if (channel === "facebook") {
+    return { facebook: { type: "post" } };
+  }
+  return null;
 }
 
 async function queueOnBuffer(
@@ -321,21 +339,23 @@ async function queueOnBuffer(
   const token = process.env.BUFFER_TOKEN;
   if (!token) return { ok: false, error: "BUFFER_TOKEN not set" };
 
-  // assets is non-null in the schema (`[AssetInput!]! = []`), so an empty
-  // array is valid. AssetInput is a `@oneOf` union — for an image we wrap
-  // it as `{ image: { url, metadata: { altText } } }`. Buffer requires
-  // altText when metadata is present; we synthesize one from the post if
-  // the caller didn't provide it. saveToDraft:true keeps the post in the
-  // Drafts tab (not the queue) until Victor clicks publish in Buffer.
+  const channelId = ARTO_BUFFER_CHANNELS[args.channel];
+
+  // assets is non-null in the schema (`[AssetInput!]! = []`). AssetInput
+  // is a `@oneOf` union — for an image we wrap as
+  // `{ image: { url, metadata: { altText } } }`. altText is required
+  // when ImageMetadataInput is present.
   const assets = args.imageUrl
     ? [{ image: { url: args.imageUrl, metadata: { altText: args.altText ?? "ARTO post" } } }]
     : [];
+  const metadata = metadataFor(args.channel);
 
   const mutation = `
     mutation CreatePost(
       $channelId: ChannelId!
       $text: String!
       $assets: [AssetInput!]!
+      $metadata: PostInputMetaData
     ) {
       createPost(input: {
         channelId: $channelId
@@ -343,6 +363,7 @@ async function queueOnBuffer(
         schedulingType: automatic
         mode: addToQueue
         assets: $assets
+        metadata: $metadata
         source: "asai-engine"
         saveToDraft: true
       }) {
@@ -366,7 +387,7 @@ async function queueOnBuffer(
       },
       body: JSON.stringify({
         query: mutation,
-        variables: { channelId: args.channelId, text: args.text, assets },
+        variables: { channelId, text: args.text, assets, metadata },
       }),
     });
     if (!r.ok) {
@@ -472,9 +493,8 @@ async function publishOneSocialPost(
   const bufferIds: string[] = [];
   const partialErrors: string[] = [];
   for (const key of channelKeys) {
-    const channelId = ARTO_BUFFER_CHANNELS[key];
     const r = await queueOnBuffer({
-      channelId,
+      channel: key,
       text,
       imageUrl,
       altText,
