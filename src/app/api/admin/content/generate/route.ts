@@ -116,6 +116,7 @@ const SOCIAL_POST_INSTRUCTIONS = `Generate {count} social media posts for ARTO S
 Each item is one POST IDEA published in three platform-specific variants. LinkedIn, Instagram, and Facebook each have their own optimal length, tone, and hashtag norms, so the SAME idea is rewritten three times in the same payload. The shape:
 
 {
+  "campaign_name": "4-8 word descriptive title for this campaign",
   "linkedin": { "hook": "...", "copy": "..." },
   "instagram": { "hook": "...", "copy": "...", "hashtags": ["..."] },
   "facebook": { "hook": "...", "copy": "..." },
@@ -150,6 +151,7 @@ Facebook (page post, conversational)
 - CTA appended as a separate line.
 
 Shared
+- campaign_name: a short descriptive title that identifies this campaign at-a-glance in the dashboard list. 4-8 words, sentence case (not all caps), in the same language as the post. Should summarize WHAT the post is about, NOT use the hook verbatim. Examples: "Discipline beats inspiration thesis", "Disciplina supera a la inspiración", "ARTO global presence across four cities", "3000 prompt catalog launch in Spanish". Avoid "The X campaign" / "Post about X" patterns.
 - cta_text: 3-5 words. Examples: 'Browse the catalog', 'Try Brand Roast', 'Read the guide'.
 - cta_url: one of /prompts, /pricing, /work, /roast, /learn, /learn/<slug>. NEVER external.
 - Tone rules apply on all 3 variants (banned words list, tú-form Spanish, no AI tells, no em-dashes, no antithesis patterns).
