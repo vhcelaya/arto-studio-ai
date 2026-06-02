@@ -32,6 +32,13 @@ export interface LearnPageConfig {
   use_cases_en: string[];
   use_cases_es: string[];
   related_keywords: string[];
+  /* Optional fields produced by the Content Factory pipeline. The 12
+   * hardcoded vertical guides above do not set them; Content Factory
+   * blog_posts always do. */
+  body_en?: string;       // 500-800 word editorial body, paragraphs separated by blank lines
+  body_es?: string;
+  image_url?: string;     // brand-faithful hero image written by generateAndStoreImage
+  image_brief?: unknown;  // raw ImageBrief from the generator (treatment, text_overlay, ...)
 }
 
 export const LEARN_PAGES: LearnPageConfig[] = [

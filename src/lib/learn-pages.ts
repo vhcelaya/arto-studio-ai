@@ -34,6 +34,11 @@ interface DynamicPage {
   intro_es: string;
   use_cases_en: string[];
   use_cases_es: string[];
+  related_keywords: string[];
+  body_en?: string;
+  body_es?: string;
+  image_url?: string;
+  image_brief?: unknown;
 }
 
 async function fetchPublishedBlogPosts(): Promise<DynamicPage[]> {
@@ -71,6 +76,11 @@ async function fetchPublishedBlogPosts(): Promise<DynamicPage[]> {
         intro_es: p.intro_es,
         use_cases_en: Array.isArray(p.use_cases_en) ? (p.use_cases_en as string[]) : [],
         use_cases_es: Array.isArray(p.use_cases_es) ? (p.use_cases_es as string[]) : [],
+        related_keywords: Array.isArray(p.related_keywords) ? (p.related_keywords as string[]) : [],
+        body_en: typeof p.body_en === "string" ? p.body_en : undefined,
+        body_es: typeof p.body_es === "string" ? p.body_es : undefined,
+        image_url: typeof p.image_url === "string" ? p.image_url : undefined,
+        image_brief: p.image_brief,
       });
     }
     return out;

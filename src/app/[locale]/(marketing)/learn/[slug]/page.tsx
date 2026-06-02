@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LEARN_PAGES, type LearnPageConfig } from "@/lib/learn-config";
@@ -46,6 +47,19 @@ function pickUseCases(page: LearnPageConfig, locale: Locale): string[] {
 function pickMeta(page: LearnPageConfig, locale: Locale): string {
   return locale === "es" ? page.meta_description_es : page.meta_description_en;
 }
+function pickBody(page: LearnPageConfig, locale: Locale): string | undefined {
+  const v = locale === "es" ? page.body_es : page.body_en;
+  return typeof v === "string" && v.trim().length > 0 ? v : undefined;
+}
+
+/* Split the body into paragraphs. Claude emits blank lines as paragraph
+ * breaks; we accept either \n\n or a single \n with empty content. */
+function splitParagraphs(body: string): string[] {
+  return body
+    .split(/\n{2,}/)
+    .map((para) => para.replace(/\s+/g, " ").trim())
+    .filter((para) => para.length > 0);
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: localeParam, slug } = await params;
@@ -84,7 +98,39 @@ export default async function LearnSlugPage({ params }: Props) {
       </Link>
 
       <h1 className="mt-6 text-4xl font-semibold tracking-tight">{pickHero(page, locale)}</h1>
-      <p className="mt-4 text-neutral-700">{pickIntro(page, locale)}</p>
+
+      {/* Hero image — content_items blog_posts always carry an image_url
+        * written by the publisher. Hardcoded vertical guides usually
+        * don't, so we only render this block when the field is set. */}
+      {page.image_url && (
+        <div className="relative mt-8 aspect-[16/9] w-full overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
+          <Image
+            src={page.image_url}
+            alt={pickHero(page, locale)}
+            fill
+            sizes="(min-width: 1024px) 768px, 100vw"
+            priority
+            className="object-cover"
+          />
+        </div>
+      )}
+
+      <p className="mt-8 text-neutral-700">{pickIntro(page, locale)}</p>
+
+      {/* Long body (500-800 words). Rendered only for Content Factory
+        * blog_posts. Each blank-line-separated chunk becomes a <p>. */}
+      {(() => {
+        const body = pickBody(page, locale);
+        if (!body) return null;
+        const paras = splitParagraphs(body);
+        return (
+          <div className="mt-6 space-y-4 text-neutral-700">
+            {paras.map((para, i) => (
+              <p key={i} className="leading-relaxed">{para}</p>
+            ))}
+          </div>
+        );
+      })()}
 
       <h2 className="mt-12 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
         {t.use_cases_h2}

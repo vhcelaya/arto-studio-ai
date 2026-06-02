@@ -71,7 +71,7 @@ export const PAYLOAD_TEXT_KEYS: Record<string, string[]> = {
   prompt: ["title_en", "title_es", "body_en", "body_es", "use_case", "expected_output"],
   blog_post: [
     "title_en", "title_es", "meta_description_en", "meta_description_es",
-    "hero_en", "hero_es", "intro_en", "intro_es",
+    "hero_en", "hero_es", "intro_en", "intro_es", "body_en", "body_es",
   ],
   social_post: ["cta_text", "hook", "copy"],
 };

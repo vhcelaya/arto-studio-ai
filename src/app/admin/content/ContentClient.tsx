@@ -776,8 +776,10 @@ const FIELDS_BLOG: FieldSpec[] = [
   { key: "meta_description_es", label: "Meta description (ES)", kind: "textarea", rows: 2 },
   { key: "hero_en", label: "Hero (EN)", kind: "input" },
   { key: "hero_es", label: "Hero (ES)", kind: "input" },
-  { key: "intro_en", label: "Intro (EN)", kind: "textarea", rows: 6 },
-  { key: "intro_es", label: "Intro (ES)", kind: "textarea", rows: 6 },
+  { key: "intro_en", label: "Intro (EN, 80-160 palabras)", kind: "textarea", rows: 5 },
+  { key: "intro_es", label: "Intro (ES, 80-160 palabras)", kind: "textarea", rows: 5 },
+  { key: "body_en", label: "Body (EN, 500-800 palabras, párrafos separados por línea en blanco)", kind: "textarea", rows: 16 },
+  { key: "body_es", label: "Body (ES, 500-800 palabras, párrafos separados por línea en blanco)", kind: "textarea", rows: 16 },
   { key: "use_cases_en", label: "Use cases (EN, one per line)", kind: "csv", rows: 6 },
   { key: "use_cases_es", label: "Use cases (ES, one per line)", kind: "csv", rows: 6 },
 ];
