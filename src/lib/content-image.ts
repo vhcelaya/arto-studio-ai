@@ -154,9 +154,6 @@ export async function generateAndStoreImage(
 ): Promise<GenerateImageResult> {
   const { item_id, type, payload, size = "1024x1024", promptOverride } = args;
 
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY not configured");
-  }
   if (!IMAGE_PRICING[size]) {
     throw new Error(`unsupported size: ${size}`);
   }
@@ -165,37 +162,95 @@ export async function generateAndStoreImage(
     (promptOverride ?? "").trim() ||
     buildArtoImagePrompt(type, payload as PayloadLike);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const result = await openai.images.generate({
-    model: MODEL,
-    prompt,
-    n: 1,
-    size,
-  });
-  const b64 = result.data?.[0]?.b64_json;
+  /* Two-tier provider strategy:
+   *  1. Higgsfield via the Mac Mini service (ARTO_IMAGE_SERVICE_URL +
+   *     shared bearer). Better quality models, no per-image USD cost
+   *     because the credits live in Victor's Ultimate plan.
+   *  2. OpenAI gpt-image-1 fallback (the original path) if the Mac Mini
+   *     is unreachable, returns 5xx, or times out. Vercel-resident, $0.04
+   *     per 1024x1024, always-on safety net.
+   *
+   * The provider that succeeds writes its result into payload.image_url
+   * + payload.image_prompt and bumps cost_usd appropriately. */
   let pngBuffer: Buffer;
-  if (b64) {
-    pngBuffer = Buffer.from(b64, "base64");
-  } else {
-    const url = result.data?.[0]?.url;
-    if (!url) throw new Error("OpenAI returned no image data");
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`Failed to download generated image: ${r.status}`);
-    pngBuffer = Buffer.from(await r.arrayBuffer());
+  let providerUsed: "higgsfield" | "openai" = "higgsfield";
+  let costUsd = 0;
+  const higgsUrl = process.env.ARTO_IMAGE_SERVICE_URL;
+  const higgsSecret = process.env.ARTO_IMAGE_SHARED_SECRET;
+  let higgsfieldImageUrl: string | undefined;
+
+  if (higgsUrl && higgsSecret) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90_000);
+      const r = await fetch(`${higgsUrl.replace(/\/$/, "")}/generate-image`, {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: {
+          Authorization: `Bearer ${higgsSecret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ item_id, prompt }),
+      }).finally(() => clearTimeout(timer));
+      if (!r.ok) {
+        const body = (await r.text()).slice(0, 200);
+        throw new Error(`Mac Mini ${r.status}: ${body}`);
+      }
+      const data = await r.json();
+      higgsfieldImageUrl = data?.image_url;
+      if (!higgsfieldImageUrl) throw new Error("Mac Mini returned no image_url");
+      // Mac Mini already uploaded to Supabase Storage at <item_id>.png.
+      // We don't need to fetch the bytes; we just need to update the row
+      // with the new payload. Skip the OpenAI branch entirely.
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Bubble down to OpenAI fallback. We log to console so the Vercel
+      // build logs show the partial failure for debugging.
+      console.warn(`[content-image] Higgsfield failed, falling back to OpenAI: ${msg}`);
+      higgsfieldImageUrl = undefined;
+    }
   }
 
-  const path = `${item_id}.png`;
-  const { error: uploadErr } = await sb.storage
-    .from("content-images")
-    .upload(path, pngBuffer, {
-      contentType: "image/png",
-      upsert: true,
+  if (!higgsfieldImageUrl) {
+    // OpenAI fallback path.
+    providerUsed = "openai";
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error(
+        "OPENAI_API_KEY not configured and Mac Mini image service unavailable",
+      );
+    }
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const result = await openai.images.generate({
+      model: MODEL,
+      prompt,
+      n: 1,
+      size,
     });
-  if (uploadErr) throw new Error(`storage upload failed: ${uploadErr.message}`);
+    const b64 = result.data?.[0]?.b64_json;
+    if (b64) {
+      pngBuffer = Buffer.from(b64, "base64");
+    } else {
+      const url = result.data?.[0]?.url;
+      if (!url) throw new Error("OpenAI returned no image data");
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Failed to download generated image: ${r.status}`);
+      pngBuffer = Buffer.from(await r.arrayBuffer());
+    }
+    costUsd = IMAGE_PRICING[size];
 
-  const { data: publicData } = sb.storage.from("content-images").getPublicUrl(path);
-  const image_url = publicData.publicUrl;
-  const cost_usd = IMAGE_PRICING[size];
+    const sPath = `${item_id}.png`;
+    const { error: uploadErr } = await sb.storage
+      .from("content-images")
+      .upload(sPath, pngBuffer, {
+        contentType: "image/png",
+        upsert: true,
+      });
+    if (uploadErr) throw new Error(`storage upload failed: ${uploadErr.message}`);
+    const { data: publicData } = sb.storage.from("content-images").getPublicUrl(sPath);
+    higgsfieldImageUrl = publicData.publicUrl;
+  }
+
+  const image_url = higgsfieldImageUrl;
 
   // Pull the current row so we can preserve other payload keys + bump cost.
   const { data: existing, error: fetchErr } = await sb
@@ -209,8 +264,9 @@ export async function generateAndStoreImage(
     ...((existing?.payload as Record<string, unknown>) ?? payload),
     image_url,
     image_prompt: prompt,
+    image_provider: providerUsed,
   };
-  const newCost = ((existing?.cost_usd as number | null) ?? 0) + cost_usd;
+  const newCost = ((existing?.cost_usd as number | null) ?? 0) + costUsd;
 
   const { error: updErr } = await sb
     .from("content_items")
@@ -223,5 +279,5 @@ export async function generateAndStoreImage(
     .eq("id", item_id);
   if (updErr) throw new Error(`payload update failed: ${updErr.message}`);
 
-  return { image_url, image_prompt: prompt, cost_usd };
+  return { image_url, image_prompt: prompt, cost_usd: costUsd };
 }
