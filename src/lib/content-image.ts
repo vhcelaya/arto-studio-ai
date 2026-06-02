@@ -30,27 +30,41 @@ export type ImageSize = keyof typeof IMAGE_PRICING;
 const ARTO_STYLE_PREAMBLE = `
 ARTO brand image — art, design and digital strategy group out of New York / Toronto / Mexico City / Madrid.
 
+DENSITY MANDATE (read first):
+This is NOT minimalist flat design. ARTO images are LAYERED editorial compositions with multiple visual elements in tension. Every image must combine 2-3 of these elements at once, not just one:
+- a figural element (silhouette character, photographic crop, or sculptural object)
+- a textural element (pleated warm-brown stripe, frosted glass plate, or paper grain)
+- a typographic element (one short ALL-CAPS label, a number, a geo tag, a category eyebrow, or the "arto" wordmark)
+- a structural element (hairline grid, black plane, framing border, or whitespace gesture)
+
+A photograph alone is too thin. A pleated stripe alone is too thin. A wordmark on empty paper is too thin. The image should read at thumbnail as a SCENE, not as a swatch.
+
+Reference points the model should hold in mind: a Pentagram annual report spread, an Aperture magazine cover, a Massimo Vignelli museum poster, a Wallpaper* feature opener. Never SaaS marketing card. Never Behance generic. Never stock photo.
+
 Visual rules (mandatory):
-- Aggressively monochrome. Pure black (#000), warm off-white "paper" (#F4F2EE), and a grayscale ramp. Warm browns (umber, walnut, bronze, sand, dust) appear ONLY inside pleated motion-blur or frosted-glass texture plates — never as flat fills.
-- Editorial, gallery-quality, broadsheet-poster register. NOT corporate stock, NOT 3D render, NOT cartoon, NOT illustration in any commercial-vector style. Think art-book spread or a Massimo Vignelli / Pentagram editorial layout.
+- Aggressively monochrome. Pure black (#000), warm off-white "paper" (#F4F2EE), grayscale ramp. Warm browns (umber, walnut, bronze, sand, dust) appear ONLY inside pleated motion-blur or frosted-glass texture plates, never as flat fills.
+- Editorial, gallery-quality, broadsheet-poster register. NOT corporate stock, NOT 3D render, NOT cartoon, NOT vector illustration.
 - Photography is warm, slightly desaturated, sepia-leaning. Skin tones lean sepia. Tight crops. Faces and hands can be cut by the frame.
-- The signature illustration motif: a bold solid-black silhouette figure with an eye where its hand or head would be (eye-in-hand, eye-in-hat, person-with-eye-headed-shape). Pure black silhouette, no outline, no shading, no color, sits on paper or on black. Use this sparingly — only when a human/figure element fits the post topic.
-- A secondary motif: liquid / mercury / glass bubbles that crop into the frame from an edge, partially covering type or imagery. They cast soft photographic shadows, never UI drop-shadows.
-- Textures: pleated vertical motion-blur stripes in warm browns work as full-bleed hero backgrounds. Frosted-glass plates work as subtle tinted overlays.
-- No emoji. No rounded corners (radii are essentially zero). No soft UI drop-shadows. No glow. No gradients beyond pleated browns. No neon. No cool-blue stock photography. No cheerful or "friendly agency" mood.
+- The signature illustration motif: a bold solid-black silhouette figure with an eye where its hand or head would be. Pure black silhouette, no outline, no shading, no color.
+- A secondary motif: liquid / mercury / glass bubbles cropping into the frame from an edge, partially covering type or imagery.
+- Textures: pleated vertical motion-blur stripes in warm browns work as full-bleed hero backgrounds OR as a band running through one third of the frame. Frosted-glass plates work as overlays.
+- No emoji. No rounded corners. No soft UI drop-shadows. No glow. No neon. No cool-blue stock photography. No cheerful "friendly agency" mood.
 - Hairline borders only — 1px black on paper, 1px light on black.
 
+Typography rules — USE typography as a compositional element, NEVER as the dominant message:
+- One short ALL-CAPS phrase or single label can anchor a corner or pin a quadrant. Set in Manrope Bold or geometric sans, tight tracking. 1-3 words is plenty.
+- Numerals, percentages, years (2026), or geographic tags work well as small labels.
+- Section eyebrows like "01 / FIELD NOTES" or "CASE STUDY" add editorial register without claiming attention.
+- The "arto" wordmark is a slightly-italic editorial serif (Romana style), always lowercase, small scale, corner-pinned.
+- NEVER fill the frame with text. NEVER use long sentences. Typography is a TEXTURE, not a message.
+
 Composition rules:
-- Anchor visual mass to bottom-left or top-right of the frame, never dead-center cluttered. Leave generous outer margins.
-- Geographic tags pin to corners ("NEW YORK / TORONTO" top-left style), if any tags appear at all.
+- Anchor visual mass to bottom-left, top-right, or a clear diagonal. Never dead-center cluttered.
+- Use whitespace as a deliberate gesture, not as a vacuum.
+- Layer foreground / midground / background. Photograph + texture overlay + corner label. Silhouette + pleated stripe + wordmark. Frosted plate + tiny geo tag + hairline frame.
 - The image must be SAFE FOR A CAPTION OVERLAY added later: lower-third must stay visually quiet (low contrast, no detail).
 
-Type rules (if any glyphs appear in the image at all):
-- Display headlines: Manrope Bold or visually equivalent — uppercase, tight tracking, set in pure black on paper or pure white on black. Headlines can break across multiple lines mid-word as a deliberate design device.
-- Body / metadata: a clean geometric sans (Geist / Inter Tight). Uppercase + wide tracking for tags, captions, and credits.
-- The "arto" wordmark is a slightly-italic editorial serif (Romana-style), always lowercase.
-
-DO NOT write headline copy into the image unless the prompt explicitly asks for it — the caller is composing copy separately for social platforms. Default to imagery-only.
+DO NOT write long headline copy into the image unless the prompt explicitly asks for it. Default to imagery-first with restrained typography.
 `.trim();
 
 /* ImageBrief drives visual variety. Generator emits one of these per
@@ -75,21 +89,21 @@ export interface ImageBrief {
 
 const TREATMENT_DESCRIPTIONS: Record<ImageTreatment, string> = {
   silhouette:
-    "A SINGLE bold solid-black silhouette character with the ARTO eye motif (eye-in-hand, eye-in-chest, or eye-headed figure). Pure black, no outline, no shading, no color. Sitting on warm off-white paper background (#F4F2EE). The character is the dominant element; the rest of the frame is empty paper. NO photographic textures, NO pleated stripes, NO glass overlays — silhouette + paper only.",
+    "ARTO silhouette character (eye-in-hand, eye-in-chest, or eye-headed figure) on warm paper, layered with at least one additional element to give the frame depth. Compose with TWO or three of these in tension: (a) the silhouette dominates a quadrant, NOT centered; (b) a thin pleated-warm motion-blur band runs through the frame behind or beside the silhouette; (c) a small typographic label in the opposite corner (one or two words, ALL CAPS, tight tracked sans — for example 'FIELD NOTES', 'CASE 03', 'METHOD'); (d) a number or year as a tracked label; (e) hairline structural lines dividing background planes. The silhouette is pure solid black, no outline, no shading, no color. The image reads as an editorial spread, not a poster swatch.",
   pleated_warm:
-    "Full-bleed vertical pleated motion-blur field in warm browns (umber, walnut, bronze, sand, dust). The pleats run vertical, creating a layered curtain feel. NO silhouette figure, NO photography. The texture IS the image. Composition is editorial and quiet.",
+    "Warm-brown pleated motion-blur as a major design element BUT NOT alone. Choose ONE: (a) full-bleed pleated curtain background with a black geometric block or hairline frame layered over a third of the frame and a small tracked typographic tag pinned to a corner; (b) the pleated stripe occupies a vertical or horizontal band crossing a paper field, with a silhouette element or sculptural object on the paper side; (c) the pleated field sits inside a hairline-framed rectangle on paper, almost like a swatch in a monograph, with section-number typography next to it. The pleated motion-blur browns must read as actual woven texture, never as flat color fill. Layered, not bare.",
   frosted_glass:
-    "A frosted-glass plate (semi-transparent, blurred) positioned over a warm-brown pleated motion-blur ground. The glass plate is rectangular with hairline borders, slightly tilted or grid-aligned. Composition reads as architectural / editorial layering.",
+    "A frosted-glass plate (semi-transparent, blurred) sits over a warm-brown pleated ground OR over a sepia photograph. The plate has hairline borders and is grid-aligned or slightly tilted. Add a second visual layer: a tracked sans-typographic label sticks out from behind one corner of the plate (one or two words like 'PROCESS' or '02 / METHOD'), OR a small silhouette element peeks out from one edge, OR a numeric label anchors the empty quadrant. Three planes total — ground, glass, label — never just glass on background.",
   photographic_crop:
-    "An editorial sepia-warm photograph, tight crop. Hands holding a small object, OR a face partially cropped by the frame, OR an architectural/material detail. Slightly desaturated, warm cast. NO neon, NO cool blues. Tight composition with editorial restraint.",
+    "Sepia-warm editorial photograph occupying the dominant portion of the frame: hands shaping a material, a face partially cropped, an object on a tabletop, architectural detail in raking light. Layer with at least one of: (a) a thin pleated-warm motion-blur band crossing the lower or upper edge of the photo; (b) a frosted-glass strip overlay; (c) a small ALL-CAPS tracked label (year, location, section name) pinned to a corner; (d) a hairline border framing the photograph as a plate within paper. The photo is warm, desaturated, sepia-leaning, never neon or cool-blue.",
   poster_headline:
-    "Poster-scale composition on warm off-white paper. A short headline phrase rendered in Manrope Bold (or visually equivalent geometric sans), ALL CAPS, tight letter-spacing. The type is the dominant element. Headlines can break across multiple lines mid-word as a design device. The phrase must read large and decisive at thumbnail scale.",
+    "Poster-scale composition on warm paper with the supplied phrase rendered in Manrope Bold or equivalent, ALL CAPS, tight tracked, broken across multiple lines mid-word as an editorial gesture. The headline IS the dominant element, but it must NOT be alone in the frame. Add at least ONE supporting element: (a) a small editorial eyebrow above the headline ('01 / FIELD NOTES', 'CASE STUDY', 'POSITION'); (b) a thin pleated-warm motion-blur stripe at the bottom or side; (c) a silhouette element in a corner; (d) a numeric reference tag. The supporting element is small, restrained, never competes with the headline.",
   bubbles_overlay:
-    "Liquid / mercury / glass bubble shapes (one or two) cropping into the frame from an edge, partially covering whatever is behind them. Bubbles cast soft photographic shadows. Background can be warm-brown pleated or warm off-white paper. The bubbles are the focal point.",
+    "Liquid / mercury / glass bubble shapes cropping into the frame from one or two edges. Bubbles cast soft photographic shadows. Compose with depth: bubbles in foreground partially covering a middleground element — either a silhouette character, a sepia-warm photographic crop, or a pleated-warm field. Add a small typographic anchor in the quietest quadrant (one tracked label or the arto wordmark). Three layers minimum: ground, bubbles, label.",
   geographic_card:
-    "Editorial composition on warm off-white paper. Corner-pinned all-caps geographic tags: 'NEW YORK / TORONTO' top-left, 'MEXICO CITY / MADRID' top-right OR vice versa, in small tracked sans. A single quiet visual element (silhouette, frosted plate, or pleated field) lives in the center or bottom. The geo tags ARE part of the design.",
+    "Editorial composition with corner-pinned geographic tags ('NEW YORK / TORONTO' top-left, 'MEXICO CITY / MADRID' top-right) in small tracked sans. The body of the frame is NOT empty paper — fill it with a confident visual: a silhouette character, a frosted-glass plate over pleated brown, a tight sepia photograph, OR a hairline grid containing a black geometric block. The geo tags are structural typography, the visual element is the editorial subject. Both work together.",
   architectural:
-    "Editorial gallery layout: hairline borders dividing the frame into 2-3 planes, mixing pure black blocks and warm paper. Tight geometric sans typography may appear as labels. Reads as the spread of a design monograph or art-book. Restrained, architectural, no photography.",
+    "Editorial gallery spread: hairline borders divide the frame into 2-3 asymmetric planes mixing pure black blocks, paper, and ONE warm-brown pleated panel. Tight geometric sans typography appears as labels — section numbers, eyebrows like 'METHOD' or 'CASE', a small year, the arto wordmark. Optionally include one sculptural element (silhouette, tight photographic crop, or material detail) in one plane. Multiple elements in conversation, never one black block on paper.",
 };
 
 interface PayloadLike {
