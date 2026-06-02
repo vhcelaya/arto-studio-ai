@@ -603,7 +603,9 @@ function ItemDrawer({
   }, []);
 
   async function generateImage() {
-    if (!confirm("Generar imagen con DALL-E? Toma ~10-20s y cuesta ~$0.04 USD.")) return;
+    // No confirm() — operator iterates via drawer controls and clicks
+    // regenerate as many times as needed. Cost is Higgsfield credits
+    // (no USD) when Mac Mini is up.
     setImageBusy(true);
     setImageElapsed(0);
     const start = Date.now();
@@ -611,10 +613,16 @@ function ItemDrawer({
       setImageElapsed((Date.now() - start) / 1000);
     }, 100);
     try {
+      // Pull the current image_brief from the edited payload (drawer
+      // controls write here). If absent the route applies its own default.
+      const brief = (payload as Record<string, unknown>).image_brief;
       const res = await fetch("/api/admin/content/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: item.id }),
+        body: JSON.stringify({
+          item_id: item.id,
+          ...(brief ? { image_brief: brief } : {}),
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
       await onReload();
@@ -865,14 +873,22 @@ function ItemDrawer({
                   ? `Generando… ${imageElapsed.toFixed(1)}s`
                   : (payload as Record<string, string>).image_url
                   ? "Regenerar imagen"
-                  : "Generar imagen (DALL-E)"}
+                  : "Generar imagen"}
               </button>
             </div>
             {imageBusy && (
               <p className="mt-1 text-[10px] text-zinc-500">
-                Usualmente tarda 10-20s. DALL-E 3 / gpt-image-1, ~$0.04 USD por imagen.
+                Higgsfield Nano Banana Pro 2k via Mac Mini, ~30-50s. Sin costo USD (créditos del plan Ultimate). Fallback automático a OpenAI gpt-image-1 si Mac Mini no responde.
               </p>
             )}
+
+            {/* Visual brief controls. Operator picks treatment + toggles
+              * + text overlay; click Regenerar and the new image respects
+              * these choices. Persists to payload.image_brief. */}
+            <ImageBriefControls
+              brief={(payload as Record<string, unknown>).image_brief}
+              onChange={(next) => setField("image_brief", next)}
+            />
             {(payload as Record<string, string>).image_url ? (
               <div className="mt-2">
                 <img
@@ -941,6 +957,111 @@ function ItemDrawer({
           </div>
         </footer>
       </div>
+    </div>
+  );
+}
+
+/* ---------- ImageBriefControls ---------- */
+
+interface ImageBriefShape {
+  treatment?: string;
+  text_overlay?: string | null;
+  wordmark?: boolean;
+  geo_tags?: boolean;
+}
+
+const TREATMENTS: Array<{ key: string; label: string }> = [
+  { key: "silhouette", label: "Silueta + paper (character eye-in-X, mínimo)" },
+  { key: "pleated_warm", label: "Pleated warm (browns motion-blur)" },
+  { key: "frosted_glass", label: "Frosted glass (plate sobre brown ground)" },
+  { key: "photographic_crop", label: "Photographic crop (sepia warm, hands/objects)" },
+  { key: "poster_headline", label: "Poster headline (Manrope Bold ALL-CAPS)" },
+  { key: "bubbles_overlay", label: "Bubbles (glass droplets cropping)" },
+  { key: "geographic_card", label: "Geographic card (NEW YORK / TORONTO...)" },
+  { key: "architectural", label: "Architectural (hairlines + black planes)" },
+];
+
+function ImageBriefControls({
+  brief,
+  onChange,
+}: {
+  brief: unknown;
+  onChange: (next: ImageBriefShape) => void;
+}) {
+  const current: ImageBriefShape =
+    brief && typeof brief === "object" ? (brief as ImageBriefShape) : {};
+  const treatment = current.treatment ?? "silhouette";
+  const textOverlay = current.text_overlay ?? "";
+  const wordmark = current.wordmark ?? true;
+  const geoTags = current.geo_tags ?? false;
+
+  function patch(next: Partial<ImageBriefShape>) {
+    onChange({
+      treatment,
+      text_overlay: textOverlay || null,
+      wordmark,
+      geo_tags: geoTags,
+      ...next,
+    });
+  }
+
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-zinc-200 bg-zinc-50/40 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        Controles visuales
+      </p>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-zinc-500">
+          Treatment
+        </label>
+        <select
+          value={treatment}
+          onChange={(e) => patch({ treatment: e.target.value })}
+          className="mt-0.5 w-full rounded-md border border-zinc-300 px-2 py-1 text-xs outline-none focus:border-zinc-900"
+        >
+          {TREATMENTS.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-zinc-500">
+          Frase a renderizar (opcional, 4-8 palabras)
+        </label>
+        <input
+          value={textOverlay ?? ""}
+          onChange={(e) => patch({ text_overlay: e.target.value || null })}
+          placeholder="(sin texto)"
+          className="mt-0.5 w-full rounded-md border border-zinc-300 px-2 py-1 text-xs outline-none focus:border-zinc-900"
+        />
+      </div>
+
+      <div className="flex gap-4">
+        <label className="flex items-center gap-1.5 text-[11px]">
+          <input
+            type="checkbox"
+            checked={wordmark}
+            onChange={(e) => patch({ wordmark: e.target.checked })}
+          />
+          Wordmark "arto"
+        </label>
+        <label className="flex items-center gap-1.5 text-[11px]">
+          <input
+            type="checkbox"
+            checked={geoTags}
+            onChange={(e) => patch({ geo_tags: e.target.checked })}
+          />
+          Geo tags (NY / TOR / CDMX / MAD)
+        </label>
+      </div>
+
+      <p className="text-[10px] italic text-zinc-400">
+        Cambia controles → click "Regenerar imagen" arriba para aplicarlos.
+      </p>
     </div>
   );
 }
