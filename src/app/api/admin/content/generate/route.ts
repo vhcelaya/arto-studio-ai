@@ -120,7 +120,13 @@ Each item is one POST IDEA published in three platform-specific variants. Linked
   "instagram": { "hook": "...", "copy": "...", "hashtags": ["..."] },
   "facebook": { "hook": "...", "copy": "..." },
   "cta_text": "...",
-  "cta_url": "..."
+  "cta_url": "...",
+  "image_brief": {
+    "treatment": "silhouette" | "pleated_warm" | "frosted_glass" | "photographic_crop" | "poster_headline" | "bubbles_overlay" | "geographic_card" | "architectural",
+    "text_overlay": null | "FRASE EN MAYÚSCULAS 4-8 PALABRAS",
+    "wordmark": true | false,
+    "geo_tags": true | false
+  }
 }
 
 Per-network rules (mandatory):
@@ -149,7 +155,26 @@ Shared
 - Tone rules apply on all 3 variants (banned words list, tú-form Spanish, no AI tells, no em-dashes, no antithesis patterns).
 - Lean into ARTO's concrete identity: 3,000 bilingual prompts, 15+ years with Google / Nike / Uber, methodology not motivation.
 
-The 3 versions should clearly be the SAME idea — never invent a different topic per network. They should diverge ONLY in length, hashtag treatment, and register, not in substance.
+The 3 versions should clearly be the SAME idea, never invent a different topic per network. They should diverge ONLY in length, hashtag treatment, and register, not in substance.
+
+IMAGE BRIEF — chosen by you, the writer.
+Every social_post carries an image. Pick the visual treatment that fits the idea. ARTO has 8 treatments:
+
+- silhouette: bold black silhouette character (eye-in-hand, eye-in-chest motif) on paper. Use for posts about people, craft, identity, or when copy is narrative and abstract.
+- pleated_warm: warm-brown pleated motion-blur field. Use for posts about momentum, methodology, depth.
+- frosted_glass: frosted glass plate over warm-brown ground. Use for conceptual / process posts.
+- photographic_crop: tight sepia-warm photo (hands, objects, faces partially cropped). Use for posts about craft and tangible work.
+- poster_headline: poster-scale Manrope Bold ALL-CAPS headline on paper. Use when the post has a strong, quotable claim. text_overlay MUST be set.
+- bubbles_overlay: liquid / mercury glass bubbles cropping into the frame. Use for posts about energy, motion, surprise.
+- geographic_card: editorial composition with NEW YORK / TORONTO / MEXICO CITY / MADRID corner tags. Use for posts about scale / reach / "the global agency that never sleeps".
+- architectural: editorial grid with hairlines and black planes. Use for posts about systems, structure, methodology.
+
+Also decide:
+- text_overlay: a SHORT (4-8 words) ALL-CAPS phrase to render IN the image. Required for poster_headline. Optional (and often null) for other treatments. When set, must complement the post idea, NOT repeat the hook verbatim.
+- wordmark: true to include the small italic-serif "arto" wordmark in a corner. Default true. Set false ONLY when the treatment already includes typography (geographic_card, poster_headline).
+- geo_tags: true to include corner-pinned NEW YORK / TORONTO / MEXICO CITY / MADRID tags. Default false. Only set true for geographic_card OR for posts explicitly about ARTO's global presence.
+
+Vary treatments across the batch. Three social posts in a row should not all be silhouette.
 
 Return a JSON object: { "items": [ ... ] }`;
 
