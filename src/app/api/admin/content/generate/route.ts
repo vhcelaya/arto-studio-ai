@@ -34,7 +34,23 @@ Tone rules (apply to either language):
 - Direct, terse, no marketing fluff. No emoji unless intentional and rare.
 - Spanish uses tú-form (Mexico). NEVER vos/che/tenés/acá.
 - Banned in either language: leverage, empower, synergy, holistic, ecosystem, disruptive, scalable, optimize, elevate, robust, potenciar, empoderar, sinergia, robusto, holístico, disruptivo, escalable, optimizar.
-- Show that ARTO actually does the work — concrete frameworks, methodology, client examples — not motivational fluff.
+- Show that ARTO actually does the work via concrete frameworks, methodology, client examples. Not motivational fluff.
+
+PUNCTUATION — no em-dashes anywhere.
+The em-dash character (—) is BANNED. Also banned: en-dashes (–) used in place of em-dashes.
+If you would normally write an em-dash, use one of these instead: a period to end the thought, a comma to keep flowing, a colon to introduce an explanation, parentheses to set off an aside, or simply a new sentence. Hyphens (-) inside compound words like "art-design-and-strategy" are fine; replacements for em-dashes are not.
+
+ANTI-PATTERNS — these are AI-tell phrasings. Never use them:
+- "Not X. It is Y." / "Not X, but Y." / "X is not Y, X is Z."
+  Spanish equivalents: "No es X. Es Y." / "No X. Sino Y." / "X no es Y, X es Z."
+  This antithesis trick is the most obvious AI pattern. Just state Y plainly without setting up the negation.
+- "It's not about X, it's about Y."
+- Triplet build-ups for rhythm: "Bold. Clear. Focused." Avoid the three-staccato-words pattern.
+- "We don't just X, we Y." / "More than X, it is Y."
+- Opening with "In a world where..." or "In today's..."
+- Hollow scale claims like "redefining the future of design".
+
+Write declarative statements. State what is, plainly. The reader will feel the contrast on their own.
 
 Output STRICT JSON only, no preamble.`;
 
@@ -227,7 +243,14 @@ export async function POST(request: NextRequest) {
    * operator can see what happened. */
   const dedup = await dedupCheck(sb, type, parsed.items);
 
-  const rowsToInsert = dedup.kept.map((payload) => ({
+  /* Voice scrub — backstop the prompt-level rules.
+   * Auto-fix em-dashes / en-dashes (replace with ". " when at clause
+   * boundaries, ", " otherwise). Detect "no es X, es Y" antithesis
+   * (en + es) and reject those items into the rejections list so the
+   * operator sees what was filtered. */
+  const voiced = applyVoiceScrub(type, dedup.kept);
+
+  const rowsToInsert = voiced.kept.map((payload) => ({
     type,
     status: "draft" as const,
     language,
@@ -241,13 +264,100 @@ export async function POST(request: NextRequest) {
     inserted = data ?? [];
   }
 
+  const allRejections = [
+    ...dedup.rejected,
+    ...voiced.rejected.map((r) => ({ ...r, reason: `voice: ${r.reason}` })),
+  ];
   return NextResponse.json({
     inserted: inserted.length,
-    rejected: dedup.rejected.length,
-    rejections: dedup.rejected,
+    rejected: allRejections.length,
+    rejections: allRejections,
     items: inserted,
     cost_usd: totalCost,
+    voice_fixes: voiced.fixes,
   });
+}
+
+/* ---------- voice scrub ---------- */
+
+/* Strings inside payloads that should obey the voice rules. Per-type so we
+ * don't touch payload metadata like 'category' or 'tier'. */
+const PAYLOAD_TEXT_KEYS: Record<string, string[]> = {
+  prompt: ["title_en", "title_es", "body_en", "body_es", "use_case", "expected_output"],
+  blog_post: [
+    "title_en", "title_es", "meta_description_en", "meta_description_es",
+    "hero_en", "hero_es", "intro_en", "intro_es",
+  ],
+  social_post: ["hook", "copy", "cta_text"],
+};
+
+const ANTITHESIS_PATTERNS: RegExp[] = [
+  // English
+  /\bnot\s+(just\s+)?[\w'’\- ]{1,50}[.,]\s*(it\s+is|it'?s|it\s+is\s+about|we|you)\s+\w/i,
+  /\bit'?s\s+not\s+about\s+\w+[.,]\s+it'?s\s+about\s+\w/i,
+  /\bmore\s+than\s+[\w ]{1,40}[.,]\s+it\s+is\s+\w/i,
+  // Spanish
+  /\bno\s+(es|son)\s+[\w'áéíóúñ\- ]{1,50}[.,]\s+(es|son)\s+\w/i,
+  /\bno\s+se\s+trata\s+de\s+[\w ]{1,40}[.,]\s+se\s+trata\s+de\s+\w/i,
+  /\bm[aá]s\s+que\s+[\w ]{1,40}[.,]\s+es\s+\w/i,
+];
+
+/* Replace em-dash + en-dash with the right ASCII punctuation. The em-dash
+ * usually wants ". " (sentence break) when surrounded by spaces, or "," when
+ * it's mid-clause. Default to ". " which is the safer brand fit for ARTO. */
+function scrubDashes(s: string): { out: string; touched: boolean } {
+  if (!s) return { out: s, touched: false };
+  const original = s;
+  // Em-dash with spaces on both sides → sentence break.
+  let out = s.replace(/\s+—\s+/g, ". ");
+  // Em-dash hugging a word → comma.
+  out = out.replace(/—/g, ", ");
+  // En-dash used in place of em-dash (same rules).
+  out = out.replace(/\s+–\s+/g, ". ");
+  out = out.replace(/–/g, ", ");
+  // Collapse accidental ", ." or ".." created by the rewrite.
+  out = out.replace(/,\s*\./g, ".").replace(/\.{2,}/g, ".");
+  return { out, touched: out !== original };
+}
+
+interface VoiceResult {
+  kept: Record<string, unknown>[];
+  rejected: Array<{ payload: Record<string, unknown>; reason: string }>;
+  fixes: number;
+}
+
+function applyVoiceScrub(type: string, items: Record<string, unknown>[]): VoiceResult {
+  const out: VoiceResult = { kept: [], rejected: [], fixes: 0 };
+  for (const raw of items) {
+    const keys = PAYLOAD_TEXT_KEYS[type] ?? Object.keys(raw).filter((k) => typeof raw[k] === "string");
+    let antithesisHit: string | null = null;
+    const fixed: Record<string, unknown> = { ...raw };
+    for (const k of keys) {
+      const v = raw[k];
+      if (typeof v !== "string") continue;
+      // Antithesis check first — if found, reject the whole item; auto-fix
+      // is too risky for ARTO's brand voice.
+      for (const re of ANTITHESIS_PATTERNS) {
+        if (re.test(v)) {
+          antithesisHit = `field '${k}' uses an antithesis anti-pattern: "${v.slice(0, 80)}..."`;
+          break;
+        }
+      }
+      if (antithesisHit) break;
+      // Otherwise scrub dashes in place.
+      const { out: scrubbed, touched } = scrubDashes(v);
+      if (touched) {
+        fixed[k] = scrubbed;
+        out.fixes += 1;
+      }
+    }
+    if (antithesisHit) {
+      out.rejected.push({ payload: raw, reason: antithesisHit });
+    } else {
+      out.kept.push(fixed);
+    }
+  }
+  return out;
 }
 
 /* ---------- dedup helpers ---------- */
