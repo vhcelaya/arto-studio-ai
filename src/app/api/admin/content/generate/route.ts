@@ -98,7 +98,13 @@ Each is a vertical guide. Strict shape per item:
   "intro_en": "...",
   "intro_es": "...",
   "use_cases_en": ["...", "..."],
-  "use_cases_es": ["...", "..."]
+  "use_cases_es": ["...", "..."],
+  "image_brief": {
+    "treatment": "silhouette" | "pleated_warm" | "frosted_glass" | "photographic_crop" | "poster_headline" | "bubbles_overlay" | "geographic_card" | "architectural",
+    "text_overlay": null | "SHORT PHRASE IN CAPS",
+    "wordmark": true | false,
+    "geo_tags": true | false
+  }
 }
 
 Constraints:
@@ -108,6 +114,23 @@ Constraints:
 - hero: one strong headline (under 80 chars)
 - intro: 80-160 words, sets up what the AI can do in this vertical in 2026
 - use_cases: 4-6 concrete situations where an operator uses prompts in this vertical
+
+IMAGE BRIEF — chosen by you, the writer.
+Every blog hero must carry a brand image. Pick the treatment that fits the topic. The 8 treatments are the same as social_post:
+- silhouette: silhouette character on paper. For posts about people, identity, narrative.
+- pleated_warm: warm-brown pleated motion-blur. For posts about methodology / momentum.
+- frosted_glass: frosted plate over warm-brown. For conceptual posts.
+- photographic_crop: tight sepia photo (hands, materials). For posts about craft.
+- poster_headline: poster-scale Manrope Bold ALL CAPS on paper. text_overlay REQUIRED.
+- bubbles_overlay: glass bubbles cropping in. For posts about energy / surprise.
+- geographic_card: NEW YORK / TORONTO / MEXICO CITY / MADRID corner tags. For posts about ARTO's global presence.
+- architectural: hairlines + black planes + tight type. For posts about systems / structure.
+
+text_overlay: SHORT (4-8 words) ALL-CAPS phrase rendered in the image. REQUIRED for poster_headline. Optional elsewhere. Should be a quotable line that complements the hero, NOT the title verbatim.
+wordmark: default true. Set false when the treatment already includes typography (geographic_card, poster_headline).
+geo_tags: default false. Set true for geographic_card.
+
+Vary treatments across the batch.
 
 Return a JSON object: { "items": [ ... ] }`;
 
