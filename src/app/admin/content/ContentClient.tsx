@@ -47,14 +47,28 @@ function expectedDurationLabel(count: number): string {
 }
 
 function previewTitle(it: ContentItem): string {
-  const p = it.payload as Record<string, string>;
+  // Reach into the payload for whatever field acts as the human-readable
+  // label for this content type. Priority:
+  //  1. campaign_name (social_post) — explicit dashboard label written by Claude
+  //  2. title_en / title_es (prompt, blog_post)
+  //  3. subject (legacy newsletter / hand-authored drafts)
+  //  4. hero_en (blog_post fallback)
+  //  5. linkedin.hook / hook — last-resort label for social posts that
+  //     pre-date the campaign_name field
+  //  6. truncated copy / item id stub
+  const p = it.payload as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim().length > 0 ? v : "");
+  const li = (p.linkedin && typeof p.linkedin === "object" ? p.linkedin : null) as Record<string, unknown> | null;
+  const copy = typeof p.copy === "string" ? (p.copy as string).slice(0, 60) : "";
   return (
-    p.title_en ||
-    p.title_es ||
-    p.subject ||
-    p.hero_en ||
-    p.hook ||
-    (typeof p.copy === "string" ? p.copy.slice(0, 60) : "") ||
+    str(p.campaign_name) ||
+    str(p.title_en) ||
+    str(p.title_es) ||
+    str(p.subject) ||
+    str(p.hero_en) ||
+    str(li?.hook) ||
+    str(p.hook) ||
+    copy ||
     it.id.slice(0, 8)
   );
 }
@@ -72,6 +86,24 @@ export default function ContentClient() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState<null | { label: string; done: number; total: number }>(null);
+
+  /* Mass selection — a Set of item ids the operator has checked. The bulk
+   * action bar floats above the list when selectedIds is non-empty and
+   * offers approve / unapprove / delete / publish over EXACTLY the
+   * checked rows. Filter changes do NOT clear the selection so the
+   * operator can stage a queue across filters. */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  function toggleSelected(id: string) {
+    setSelectedIds((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   // Generation state
   const [genBusy, setGenBusy] = useState(false);
@@ -257,6 +289,111 @@ export default function ContentClient() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /* Bulk actions over the manual selection. The patch and delete loops
+   * mirror the per-item helpers above so we get the same error-tolerance
+   * behavior. Publish goes through /api/admin/content/publish per-item
+   * because the existing route accepts either item_id (single) or type
+   * (all approved of a kind) and we want exact control over which ones.
+   * Each action confirms with the count before running. */
+  async function bulkApproveSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const drafts = items.filter((i) => ids.includes(i.id) && i.status === "draft");
+    if (drafts.length === 0) return alert("Ninguno de los seleccionados está en draft.");
+    if (!confirm(`Aprobar ${drafts.length} seleccionados?`)) return;
+    setBulkProgress({ label: "Aprobando", done: 0, total: drafts.length });
+    let done = 0, failed = 0;
+    for (const d of drafts) {
+      try {
+        const res = await fetch("/api/admin/content/items", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: d.id, status: "approved" }),
+        });
+        if (!res.ok) failed += 1;
+      } catch { failed += 1; }
+      done += 1;
+      setBulkProgress({ label: "Aprobando", done, total: drafts.length });
+    }
+    setBulkProgress(null);
+    clearSelection();
+    await load();
+    if (failed > 0) alert(`${done - failed} OK · ${failed} fallaron`);
+  }
+
+  async function bulkUnapproveSelected() {
+    const ids = Array.from(selectedIds);
+    const approved = items.filter((i) => ids.includes(i.id) && i.status === "approved");
+    if (approved.length === 0) return alert("Ninguno de los seleccionados está aprobado.");
+    if (!confirm(`Quitar aprobación a ${approved.length}?`)) return;
+    setBulkProgress({ label: "Revirtiendo", done: 0, total: approved.length });
+    let done = 0, failed = 0;
+    for (const a of approved) {
+      try {
+        const res = await fetch("/api/admin/content/items", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: a.id, status: "draft" }),
+        });
+        if (!res.ok) failed += 1;
+      } catch { failed += 1; }
+      done += 1;
+      setBulkProgress({ label: "Revirtiendo", done, total: approved.length });
+    }
+    setBulkProgress(null);
+    clearSelection();
+    await load();
+    if (failed > 0) alert(`${done - failed} OK · ${failed} fallaron`);
+  }
+
+  async function bulkPublishSelected() {
+    const ids = Array.from(selectedIds);
+    const approved = items.filter(
+      (i) => ids.includes(i.id) && i.status === "approved"
+        && (i.type === "prompt" || i.type === "blog_post" || i.type === "social_post"),
+    );
+    if (approved.length === 0) return alert("Ninguno de los seleccionados está aprobado y publicable.");
+    if (!confirm(`Publicar ${approved.length} seleccionados? Los social_post crean drafts en Buffer.`)) return;
+    setBulkProgress({ label: "Publicando", done: 0, total: approved.length });
+    let done = 0, failed = 0;
+    for (const it of approved) {
+      try {
+        const res = await fetch("/api/admin/content/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_id: it.id }),
+        });
+        if (!res.ok) failed += 1;
+      } catch { failed += 1; }
+      done += 1;
+      setBulkProgress({ label: "Publicando", done, total: approved.length });
+    }
+    setBulkProgress(null);
+    clearSelection();
+    await load();
+    if (failed > 0) alert(`${done - failed} OK · ${failed} fallaron`);
+  }
+
+  async function bulkDeleteSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Borrar PERMANENTEMENTE ${ids.length} items? No se puede deshacer.`)) return;
+    setBulkProgress({ label: "Borrando", done: 0, total: ids.length });
+    let done = 0, failed = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/admin/content/items?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!res.ok) failed += 1;
+      } catch { failed += 1; }
+      done += 1;
+      setBulkProgress({ label: "Borrando", done, total: ids.length });
+    }
+    setBulkProgress(null);
+    clearSelection();
+    await load();
+    if (failed > 0) alert(`${done - failed} OK · ${failed} fallaron`);
   }
 
   const openItem = openId ? items.find((i) => i.id === openId) ?? null : null;
@@ -451,6 +588,54 @@ export default function ContentClient() {
         </span>
       </div>
 
+      {/* Bulk action bar — appears when at least one row is selected. */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs text-white shadow-lg">
+          <span className="font-semibold">{selectedIds.size} seleccionado{selectedIds.size === 1 ? "" : "s"}</span>
+          <span className="text-zinc-400">·</span>
+          <button
+            onClick={() => setSelectedIds(new Set(visible.map((it) => it.id)))}
+            className="text-zinc-300 hover:text-white"
+          >
+            Seleccionar visibles ({visible.length})
+          </button>
+          <span className="text-zinc-400">·</span>
+          <button onClick={clearSelection} className="text-zinc-300 hover:text-white">
+            Limpiar
+          </button>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={bulkApproveSelected}
+              disabled={busy || !!bulkProgress}
+              className="rounded-md border border-emerald-400 bg-emerald-500/10 px-2 py-1 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
+            >
+              Aprobar
+            </button>
+            <button
+              onClick={bulkUnapproveSelected}
+              disabled={busy || !!bulkProgress}
+              className="rounded-md border border-amber-400 bg-amber-500/10 px-2 py-1 text-amber-200 hover:bg-amber-500/25 disabled:opacity-40"
+            >
+              Revertir a draft
+            </button>
+            <button
+              onClick={bulkPublishSelected}
+              disabled={busy || !!bulkProgress}
+              className="rounded-md border border-blue-400 bg-blue-500/10 px-2 py-1 text-blue-200 hover:bg-blue-500/25 disabled:opacity-40"
+            >
+              Publicar
+            </button>
+            <button
+              onClick={bulkDeleteSelected}
+              disabled={busy || !!bulkProgress}
+              className="rounded-md border border-red-400 bg-red-500/10 px-2 py-1 text-red-200 hover:bg-red-500/25 disabled:opacity-40"
+            >
+              Borrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Items list */}
       {loading ? (
         <p className="text-sm text-zinc-500">Cargando…</p>
@@ -458,32 +643,47 @@ export default function ContentClient() {
         <p className="text-sm text-zinc-500">No hay items que coincidan con esos filtros.</p>
       ) : (
         <div className="space-y-2">
-          {visible.map((it) => (
-            <article
-              key={it.id}
-              className="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-zinc-200 bg-white p-4 transition hover:border-zinc-400"
-              onClick={() => setOpenId(it.id)}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700">
-                    {TYPE_LABEL[it.type]}
-                  </span>
-                  <span className={`rounded-full ${STATUS_PILL[it.status]} px-2 py-0.5 font-semibold`}>
-                    {it.status}
-                    {it.edited_by_human && <span className="ml-1">✎</span>}
-                  </span>
-                  <span className="text-zinc-400">{it.language.toUpperCase()}</span>
-                  {it.published_ref && <span className="text-zinc-400">→ {it.published_ref}</span>}
+          {visible.map((it) => {
+            const checked = selectedIds.has(it.id);
+            return (
+              <article
+                key={it.id}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-4 transition hover:border-zinc-400 ${
+                  checked ? "border-zinc-900 ring-1 ring-zinc-900/20" : "border-zinc-200"
+                }`}
+                onClick={() => setOpenId(it.id)}
+              >
+                {/* Checkbox — stops click propagation so clicking it doesn't
+                  * open the drawer. */}
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleSelected(it.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-1 h-4 w-4 cursor-pointer accent-zinc-900"
+                  aria-label={`Seleccionar ${previewTitle(it)}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700">
+                      {TYPE_LABEL[it.type]}
+                    </span>
+                    <span className={`rounded-full ${STATUS_PILL[it.status]} px-2 py-0.5 font-semibold`}>
+                      {it.status}
+                      {it.edited_by_human && <span className="ml-1">✎</span>}
+                    </span>
+                    <span className="text-zinc-400">{it.language.toUpperCase()}</span>
+                    {it.published_ref && <span className="text-zinc-400">→ {it.published_ref}</span>}
+                  </div>
+                  <h3 className="mt-1.5 truncate text-sm font-semibold text-zinc-900">{previewTitle(it)}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{previewSnippet(it)}</p>
                 </div>
-                <h3 className="mt-1.5 truncate text-sm font-semibold text-zinc-900">{previewTitle(it)}</h3>
-                <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{previewSnippet(it)}</p>
-              </div>
-              <div className="text-right text-[10px] text-zinc-400">
-                {new Date(it.updated_at).toLocaleDateString("es-MX", { month: "short", day: "numeric" })}
-              </div>
-            </article>
-          ))}
+                <div className="text-right text-[10px] text-zinc-400">
+                  {new Date(it.updated_at).toLocaleDateString("es-MX", { month: "short", day: "numeric" })}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
