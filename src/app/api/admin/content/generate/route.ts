@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Anthropic from "@anthropic-ai/sdk";
+import { applyVoiceScrub } from "@/lib/voice";
 
 /* POST /api/admin/content/generate
  *
@@ -112,23 +113,43 @@ Return a JSON object: { "items": [ ... ] }`;
 
 const SOCIAL_POST_INSTRUCTIONS = `Generate {count} social media posts for ARTO Studio AI, ALL in {language}.
 
-Each item is one post designed to be cross-published to LinkedIn (page), Instagram (business), and Facebook (page). The shape:
+Each item is one POST IDEA published in three platform-specific variants. LinkedIn, Instagram, and Facebook each have their own optimal length, tone, and hashtag norms, so the SAME idea is rewritten three times in the same payload. The shape:
+
 {
-  "network": "linkedin" | "instagram" | "facebook" | "all",
-  "copy": "...",
-  "hook": "...",
+  "linkedin": { "hook": "...", "copy": "..." },
+  "instagram": { "hook": "...", "copy": "...", "hashtags": ["..."] },
+  "facebook": { "hook": "...", "copy": "..." },
   "cta_text": "...",
   "cta_url": "..."
 }
 
-Constraints:
-- network='all' means the same copy works on all 3 channels. Use 'all' when copy is platform-neutral. Otherwise pick the best fit.
-- copy: 80-280 characters for Twitter-style brevity; up to 600 chars total if the platform allows (LinkedIn does). Never include hashtag walls (max 3 hashtags). Never use #ai #marketing #branding — too generic.
-- hook: the FIRST 5-8 words of the post — must stop the scroll. NOT a question. NOT 'Are you...?'. Direct, concrete, surprising or specific.
+Per-network rules (mandatory):
+
+LinkedIn (page post, professional)
+- copy: 800-1500 chars. Narrative, declarative, gallery-text register. 2-4 short paragraphs. ONE line break between paragraphs (not two).
+- hook: first 5-8 words. Loaded statement, not a question. Avoid "I'm excited to share" / "Thrilled to announce".
+- Hashtags: 0-3 only, end of copy if at all. Never #ai #marketing #branding.
+- CTA is appended as a separate line by the publisher.
+
+Instagram (business profile, visual-first feed)
+- copy: 80-220 chars. Tight, punchy, image carries the meaning. ONE clear thought.
+- hook: first 5-8 words. Must stop the scroll without a question. Concrete + specific.
+- hashtags: 3-7 distinct, RELEVANT hashtags as a string array. No generic spam (#ai #marketing #ux). Mix branded + niche.
+- CTA: short ("Link in bio" or 3-5 word verb phrase).
+
+Facebook (page post, conversational)
+- copy: 200-400 chars. Conversational, slight warmth, can ask the reader something at the end (but NOT as the hook).
+- hook: first 5-8 words. Declarative. No clickbait.
+- Hashtags: 0-2 only.
+- CTA appended as a separate line.
+
+Shared
 - cta_text: 3-5 words. Examples: 'Browse the catalog', 'Try Brand Roast', 'Read the guide'.
-- cta_url: must be one of /prompts, /pricing, /work, /roast, /learn, /learn/<slug>. NEVER an external URL.
-- Tone rules apply (no banned words, tú-form for Spanish, no fluff).
-- Lean into ARTO's concrete identity: 3,000 bilingual prompts, 15+ years with Google/Nike/Uber, methodology not motivation.
+- cta_url: one of /prompts, /pricing, /work, /roast, /learn, /learn/<slug>. NEVER external.
+- Tone rules apply on all 3 variants (banned words list, tú-form Spanish, no AI tells, no em-dashes, no antithesis patterns).
+- Lean into ARTO's concrete identity: 3,000 bilingual prompts, 15+ years with Google / Nike / Uber, methodology not motivation.
+
+The 3 versions should clearly be the SAME idea — never invent a different topic per network. They should diverge ONLY in length, hashtag treatment, and register, not in substance.
 
 Return a JSON object: { "items": [ ... ] }`;
 
@@ -278,87 +299,8 @@ export async function POST(request: NextRequest) {
   });
 }
 
-/* ---------- voice scrub ---------- */
-
-/* Strings inside payloads that should obey the voice rules. Per-type so we
- * don't touch payload metadata like 'category' or 'tier'. */
-const PAYLOAD_TEXT_KEYS: Record<string, string[]> = {
-  prompt: ["title_en", "title_es", "body_en", "body_es", "use_case", "expected_output"],
-  blog_post: [
-    "title_en", "title_es", "meta_description_en", "meta_description_es",
-    "hero_en", "hero_es", "intro_en", "intro_es",
-  ],
-  social_post: ["hook", "copy", "cta_text"],
-};
-
-const ANTITHESIS_PATTERNS: RegExp[] = [
-  // English
-  /\bnot\s+(just\s+)?[\w'’\- ]{1,50}[.,]\s*(it\s+is|it'?s|it\s+is\s+about|we|you)\s+\w/i,
-  /\bit'?s\s+not\s+about\s+\w+[.,]\s+it'?s\s+about\s+\w/i,
-  /\bmore\s+than\s+[\w ]{1,40}[.,]\s+it\s+is\s+\w/i,
-  // Spanish
-  /\bno\s+(es|son)\s+[\w'áéíóúñ\- ]{1,50}[.,]\s+(es|son)\s+\w/i,
-  /\bno\s+se\s+trata\s+de\s+[\w ]{1,40}[.,]\s+se\s+trata\s+de\s+\w/i,
-  /\bm[aá]s\s+que\s+[\w ]{1,40}[.,]\s+es\s+\w/i,
-];
-
-/* Replace em-dash + en-dash with the right ASCII punctuation. The em-dash
- * usually wants ". " (sentence break) when surrounded by spaces, or "," when
- * it's mid-clause. Default to ". " which is the safer brand fit for ARTO. */
-function scrubDashes(s: string): { out: string; touched: boolean } {
-  if (!s) return { out: s, touched: false };
-  const original = s;
-  // Em-dash with spaces on both sides → sentence break.
-  let out = s.replace(/\s+—\s+/g, ". ");
-  // Em-dash hugging a word → comma.
-  out = out.replace(/—/g, ", ");
-  // En-dash used in place of em-dash (same rules).
-  out = out.replace(/\s+–\s+/g, ". ");
-  out = out.replace(/–/g, ", ");
-  // Collapse accidental ", ." or ".." created by the rewrite.
-  out = out.replace(/,\s*\./g, ".").replace(/\.{2,}/g, ".");
-  return { out, touched: out !== original };
-}
-
-interface VoiceResult {
-  kept: Record<string, unknown>[];
-  rejected: Array<{ payload: Record<string, unknown>; reason: string }>;
-  fixes: number;
-}
-
-function applyVoiceScrub(type: string, items: Record<string, unknown>[]): VoiceResult {
-  const out: VoiceResult = { kept: [], rejected: [], fixes: 0 };
-  for (const raw of items) {
-    const keys = PAYLOAD_TEXT_KEYS[type] ?? Object.keys(raw).filter((k) => typeof raw[k] === "string");
-    let antithesisHit: string | null = null;
-    const fixed: Record<string, unknown> = { ...raw };
-    for (const k of keys) {
-      const v = raw[k];
-      if (typeof v !== "string") continue;
-      // Antithesis check first — if found, reject the whole item; auto-fix
-      // is too risky for ARTO's brand voice.
-      for (const re of ANTITHESIS_PATTERNS) {
-        if (re.test(v)) {
-          antithesisHit = `field '${k}' uses an antithesis anti-pattern: "${v.slice(0, 80)}..."`;
-          break;
-        }
-      }
-      if (antithesisHit) break;
-      // Otherwise scrub dashes in place.
-      const { out: scrubbed, touched } = scrubDashes(v);
-      if (touched) {
-        fixed[k] = scrubbed;
-        out.fixes += 1;
-      }
-    }
-    if (antithesisHit) {
-      out.rejected.push({ payload: raw, reason: antithesisHit });
-    } else {
-      out.kept.push(fixed);
-    }
-  }
-  return out;
-}
+/* Voice scrub logic moved to src/lib/voice.ts so the publisher and any
+ * other surface that touches user-facing copy can apply the same rules. */
 
 /* ---------- dedup helpers ---------- */
 

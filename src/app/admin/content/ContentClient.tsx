@@ -510,9 +510,9 @@ type PayloadShape = Record<string, unknown>;
  * vs array editor. Anything not listed here falls back to a small input
  * at the bottom (so unknown fields are still editable). */
 interface FieldSpec {
-  key: string;
+  key: string;         // dotted path supported: "linkedin.copy", "instagram.hashtags"
   label: string;
-  kind: "input" | "textarea" | "csv";
+  kind: "input" | "textarea" | "csv" | "section";
   rows?: number;
   optional?: boolean;
 }
@@ -547,10 +547,25 @@ const FIELDS_BLOG: FieldSpec[] = [
   { key: "use_cases_es", label: "Use cases (ES, one per line)", kind: "csv", rows: 6 },
 ];
 
+/* social_post payloads carry per-network variants. The Lectura tab shows
+ * each network in its own section so the operator can edit them
+ * independently. Dotted keys (linkedin.copy, instagram.hashtags) reach
+ * into the nested objects of payload. */
 const FIELDS_SOCIAL: FieldSpec[] = [
-  { key: "network", label: "Network (linkedin / instagram / facebook / all)", kind: "input" },
-  { key: "hook", label: "Hook (primeras 5-8 palabras, debe detener el scroll)", kind: "input" },
-  { key: "copy", label: "Copy completo (80-600 chars según plataforma)", kind: "textarea", rows: 6 },
+  { key: "linkedin", label: "LinkedIn (page) — 800-1500 chars, narrativo", kind: "section" },
+  { key: "linkedin.hook", label: "Hook LinkedIn", kind: "input" },
+  { key: "linkedin.copy", label: "Copy LinkedIn", kind: "textarea", rows: 8 },
+
+  { key: "instagram", label: "Instagram (business) — 80-220 chars, visual-first", kind: "section" },
+  { key: "instagram.hook", label: "Hook Instagram", kind: "input" },
+  { key: "instagram.copy", label: "Copy Instagram", kind: "textarea", rows: 4 },
+  { key: "instagram.hashtags", label: "Hashtags (uno por línea, 3-7)", kind: "csv", rows: 5 },
+
+  { key: "facebook", label: "Facebook (page) — 200-400 chars, conversacional", kind: "section" },
+  { key: "facebook.hook", label: "Hook Facebook", kind: "input" },
+  { key: "facebook.copy", label: "Copy Facebook", kind: "textarea", rows: 5 },
+
+  { key: "shared", label: "Shared (CTA aplica a las 3)", kind: "section" },
   { key: "cta_text", label: "CTA texto (3-5 palabras)", kind: "input" },
   { key: "cta_url", label: "CTA URL (relativo: /prompts, /pricing, etc)", kind: "input" },
 ];
@@ -636,11 +651,40 @@ function ItemDrawer({
 
   function setField(key: string, value: unknown) {
     setPayload((p) => {
-      const next = { ...p, [key]: value };
+      const next: PayloadShape = { ...p };
+      // Support dotted keys for nested payloads (e.g. linkedin.copy).
+      const parts = key.split(".");
+      if (parts.length === 1) {
+        next[key] = value;
+      } else {
+        let cursor: Record<string, unknown> = next;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const seg = parts[i];
+          const existing = cursor[seg];
+          const obj: Record<string, unknown> =
+            existing && typeof existing === "object" && !Array.isArray(existing)
+              ? { ...(existing as Record<string, unknown>) }
+              : {};
+          cursor[seg] = obj;
+          cursor = obj;
+        }
+        cursor[parts[parts.length - 1]] = value;
+      }
       // Keep JSON tab in sync.
       setJsonText(JSON.stringify(next, null, 2));
       return next;
     });
+  }
+
+  function readField(payload: PayloadShape, key: string): unknown {
+    const parts = key.split(".");
+    let cursor: unknown = payload;
+    for (const p of parts) {
+      if (cursor === null || cursor === undefined) return undefined;
+      if (typeof cursor !== "object" || Array.isArray(cursor)) return undefined;
+      cursor = (cursor as Record<string, unknown>)[p];
+    }
+    return cursor;
   }
 
   function handleJsonChange(text: string) {
@@ -722,7 +766,16 @@ function ItemDrawer({
               </p>
             ) : (
               fields.map((f) => {
-                const raw = payload[f.key];
+                if (f.kind === "section") {
+                  return (
+                    <div key={f.key} className="mt-4 first:mt-0 border-t border-zinc-200 pt-3">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-900">
+                        {f.label}
+                      </p>
+                    </div>
+                  );
+                }
+                const raw = readField(payload, f.key);
                 const value =
                   f.kind === "csv"
                     ? Array.isArray(raw)
