@@ -87,27 +87,30 @@ export default async function HomePage({ params }: Props) {
               <br />
               <span className="text-neutral-400">{t.hero_h1_line2}</span>
             </h1>
-            <p className="mt-6 max-w-xl text-lg text-neutral-600">{t.hero_body}</p>
+            <p className="mt-5 max-w-xl text-lg font-medium text-neutral-800">{t.hero_subbenefit}</p>
+            <p className="mt-4 max-w-xl text-base text-neutral-600">{t.hero_body}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/roast"
+                href={lp("/prompts")}
                 className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
+              >
+                {t.hero_cta_free}
+              </Link>
+              <Link
+                href="/roast"
+                className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
               >
                 {t.hero_cta_roast}
               </Link>
               <Link
                 href={lp("/pricing")}
-                className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-neutral-400"
+                className="rounded-md px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:text-neutral-900"
               >
                 {t.hero_cta_pricing}
               </Link>
-              <Link
-                href={lp("/work")}
-                className="rounded-md px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:text-neutral-900"
-              >
-                {t.hero_cta_work}
-              </Link>
             </div>
+            <p className="mt-3 text-xs text-neutral-500">{t.hero_microcopy}</p>
+            <p className="mt-6 border-t border-neutral-200 pt-4 text-sm text-neutral-500">{t.hero_trust}</p>
           </div>
           <div className="hidden md:block">
             <Image
@@ -209,6 +212,11 @@ export default async function HomePage({ params }: Props) {
             </div>
           ))}
         </div>
+        <div className="mt-6">
+          <Link href={lp("/pricing")} className="text-sm font-medium text-neutral-500 hover:text-neutral-900">
+            {t.method_cta}
+          </Link>
+        </div>
       </section>
 
       {/* DIFFERENTIATORS */}
@@ -304,6 +312,11 @@ export default async function HomePage({ params }: Props) {
             </Link>
           ))}
         </div>
+        <div className="mt-6">
+          <Link href={lp("/learn")} className="text-sm font-medium text-neutral-500 hover:text-neutral-900">
+            {t.verticals_cta}
+          </Link>
+        </div>
       </section>
 
       {/* LATEST FROM /LEARN
@@ -381,6 +394,22 @@ export default async function HomePage({ params }: Props) {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* FAQ — purchase-friction questions, native accordion (no client JS) */}
+      <section className="border-t border-neutral-200 py-16">
+        <h2 className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl">{t.faq_h2}</h2>
+        <div className="mx-auto max-w-3xl divide-y divide-neutral-200">
+          {t.faq.map((item) => (
+            <details key={item.q} className="group py-4">
+              <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-medium text-neutral-900 marker:content-none">
+                {item.q}
+                <span className="text-neutral-400 transition group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-neutral-600">{item.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 

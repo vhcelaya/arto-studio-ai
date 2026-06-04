@@ -57,9 +57,14 @@ export const DICTIONARIES = {
       hero_h1_line2: "that never sleeps.",
       hero_body:
         "Access ARTO's real methodology — strategy, creativity, narrative, and production — through prompts, AI tools, and autonomous agents. 3,000 prompts, brand positioning skills, and creative agents, built on 15+ years with Fortune 500 brands.",
+      hero_subbenefit:
+        "Find the exact prompt for the job, in English or Spanish, and ship brand-ready work the same day.",
+      hero_cta_free: "Start free",
       hero_cta_roast: "Try Brand Roast — Free",
-      hero_cta_pricing: "See pricing",
+      hero_cta_pricing: "See pricing →",
       hero_cta_work: "See our work →",
+      hero_microcopy: "Free tier, no credit card. Around 730 prompts to start.",
+      hero_trust: "3,000 bilingual prompts · 12 creative verticals · built on work for Google, Nike, Uber.",
       tiers_eyebrow: "Three products. One platform.",
       tiers_h2: "Everything a creative team needs.",
       tier_library_title: "Prompt Library",
@@ -119,6 +124,44 @@ export const DICTIONARIES = {
       blogs_subtitle: "Field notes from the Content Factory, fresh out of /learn.",
       blogs_see_all: "Browse /learn →",
       verticals_h2: "12 creative verticals",
+      verticals_cta: "Explore the guides →",
+      method_cta: "See pricing →",
+      featured_cta: "Browse the catalog →",
+      faq_h2: "Questions before you start",
+      faq: [
+        {
+          q: "Can I use the prompts for commercial and client work?",
+          a: "Yes. Everything you generate with ARTO prompts is yours to use for your own brand and for paid client projects. There is no separate commercial license to buy.",
+        },
+        {
+          q: "Do the prompts work across different AI models?",
+          a: "Each prompt is labeled with the model it was tuned for (ChatGPT, Claude, Midjourney, and others). Most text prompts carry cleanly between Claude and ChatGPT, and image prompts are written for the model named on the card.",
+        },
+        {
+          q: "What makes ARTO different from the free prompts floating around online?",
+          a: "These come from 15+ years of real agency work for brands like Google, Nike, and Uber. Each one encodes a methodology step, not a clever one-liner, and they ship in English and Spanish side by side.",
+        },
+        {
+          q: "Do I need a credit card to start?",
+          a: "No. The Free tier gives you around 730 prompts, smart search, favorites, and one Brand Roast without entering any payment details.",
+        },
+        {
+          q: "What is Brand Roast, and is it really free?",
+          a: "Brand Roast is an honest analysis of your brand across Strategy, Creativity, Narrative, and Digital, scored with the same methodology we use for Fortune 500 clients. The first analysis needs no signup.",
+        },
+        {
+          q: "Is everything available in Spanish?",
+          a: "Yes. The catalog, the guides, and the interface all run in English and Spanish. Every prompt carries both versions.",
+        },
+        {
+          q: "Can I cancel Pro anytime?",
+          a: "Yes. Pro is month to month, processed by Stripe. You cancel from your account page and keep access until the period ends.",
+        },
+        {
+          q: "When do Skills Studio and AI Agents ship?",
+          a: "They are in active development. Join the waitlist on the Skills or Agents page and you get early access plus a launch discount when each one opens.",
+        },
+      ],
       compare_h2: "How ARTO Studio AI compares",
       compare_th: ["Alternative", "Limitation", "ARTO Studio AI"],
       compare_rows: [
@@ -150,6 +193,7 @@ export const DICTIONARIES = {
     pricing: {
       h1: "Pricing",
       sub: "Start free. Unlock the full catalog for $9/mo. Skills and Agents launching soon.",
+      value_note: "For context: a freelance creative runs $1,500 to $3,000 a month and an agency $5,000 to $15,000. ARTO Pro is $9 a month and it answers at 3 a.m.",
       most_popular: "Most popular",
       coming_soon: "Coming soon",
       footnote: "Payments processed by Stripe. Cancel from your account page anytime.",
@@ -234,6 +278,11 @@ export const DICTIONARIES = {
       status_in_dev: "In development",
       status_planned: "Planned",
       list: [
+        {
+          name: "Visual DNA",
+          desc: "Generate on-brand images that hold the same character, palette, and design system across a whole campaign. Built on ARTO's brand-consistency engine.",
+          status: "In development",
+        },
         {
           name: "Brand Positioning",
           desc: "Run ARTO's 5-phase positioning process with AI. Brief, Brand Essence, calibration scoring, anti-pattern detection.",
@@ -416,9 +465,14 @@ export const DICTIONARIES = {
       hero_h1_line2: "que nunca duerme.",
       hero_body:
         "Accede a la metodología real de ARTO — estrategia, creatividad, narrativa y producción — con prompts, herramientas de IA y agentes autónomos. 3,000 prompts, skills de posicionamiento y agentes creativos, construidos sobre 15+ años con marcas Fortune 500.",
+      hero_subbenefit:
+        "Encuentra el prompt exacto para cada tarea, en español o inglés, y entrega trabajo listo para tu marca el mismo día.",
+      hero_cta_free: "Empieza gratis",
       hero_cta_roast: "Prueba Brand Roast — Gratis",
-      hero_cta_pricing: "Ver precios",
+      hero_cta_pricing: "Ver precios →",
       hero_cta_work: "Ver nuestro trabajo →",
+      hero_microcopy: "Plan gratis, sin tarjeta. Alrededor de 730 prompts para empezar.",
+      hero_trust: "3,000 prompts bilingües · 12 verticales creativas · construidos sobre trabajo para Google, Nike y Uber.",
       tiers_eyebrow: "Tres productos. Una plataforma.",
       tiers_h2: "Todo lo que necesita un equipo creativo.",
       tier_library_title: "Biblioteca de prompts",
@@ -478,6 +532,44 @@ export const DICTIONARIES = {
       blogs_subtitle: "Notas frescas de la Content Factory, recién salidas de /learn.",
       blogs_see_all: "Ver /learn →",
       verticals_h2: "12 verticales creativas",
+      verticals_cta: "Explora las guías →",
+      method_cta: "Ver precios →",
+      featured_cta: "Ver el catálogo →",
+      faq_h2: "Preguntas antes de empezar",
+      faq: [
+        {
+          q: "¿Puedo usar los prompts en trabajo comercial y de clientes?",
+          a: "Sí. Todo lo que generas con los prompts de ARTO es tuyo para usar en tu propia marca y en proyectos pagados de clientes. No hay una licencia comercial aparte que comprar.",
+        },
+        {
+          q: "¿Los prompts funcionan en distintos modelos de IA?",
+          a: "Cada prompt está etiquetado con el modelo para el que fue afinado (ChatGPT, Claude, Midjourney y otros). La mayoría de los prompts de texto pasan limpio entre Claude y ChatGPT, y los de imagen están escritos para el modelo que aparece en la tarjeta.",
+        },
+        {
+          q: "¿Qué diferencia a ARTO de los prompts gratis que circulan en internet?",
+          a: "Vienen de 15+ años de trabajo real de agencia para marcas como Google, Nike y Uber. Cada uno encapsula un paso de metodología, no una frase ingeniosa, y llegan en español e inglés lado a lado.",
+        },
+        {
+          q: "¿Necesito tarjeta para empezar?",
+          a: "No. El plan gratis te da alrededor de 730 prompts, búsqueda inteligente, favoritos y un Brand Roast sin meter ningún dato de pago.",
+        },
+        {
+          q: "¿Qué es Brand Roast y de verdad es gratis?",
+          a: "Brand Roast es un análisis honesto de tu marca en Estrategia, Creatividad, Narrativa y Digital, calificado con la misma metodología que usamos para clientes Fortune 500. El primer análisis no requiere registro.",
+        },
+        {
+          q: "¿Todo está disponible en español?",
+          a: "Sí. El catálogo, las guías y la interfaz corren en español e inglés. Cada prompt trae ambas versiones.",
+        },
+        {
+          q: "¿Puedo cancelar Pro cuando quiera?",
+          a: "Sí. Pro es mes a mes, procesado por Stripe. Cancelas desde tu página de cuenta y conservas el acceso hasta que termine el periodo.",
+        },
+        {
+          q: "¿Cuándo salen Skills Studio y los Agentes de IA?",
+          a: "Están en desarrollo activo. Únete a la lista de espera en la página de Skills o Agentes y obtienes acceso anticipado más un descuento de lanzamiento cuando cada uno abra.",
+        },
+      ],
       compare_h2: "Cómo se compara ARTO Studio AI",
       compare_th: ["Alternativa", "Limitación", "ARTO Studio AI"],
       compare_rows: [
@@ -509,6 +601,7 @@ export const DICTIONARIES = {
     pricing: {
       h1: "Precios",
       sub: "Empieza gratis. Desbloquea el catálogo completo por $9/mes. Skills y Agentes salen pronto.",
+      value_note: "Para contexto: un creativo freelance cuesta entre $1,500 y $3,000 al mes y una agencia entre $5,000 y $15,000. ARTO Pro son $9 al mes y responde a las 3 a.m.",
       most_popular: "Más popular",
       coming_soon: "Pronto",
       footnote: "Pagos procesados por Stripe. Cancela desde tu cuenta cuando quieras.",
@@ -593,6 +686,11 @@ export const DICTIONARIES = {
       status_in_dev: "En desarrollo",
       status_planned: "En plan",
       list: [
+        {
+          name: "Visual DNA",
+          desc: "Genera imágenes consistentes con tu marca: mismo personaje, paleta y sistema de diseño en toda una campaña. Construido sobre el motor de consistencia de ARTO.",
+          status: "En desarrollo",
+        },
         {
           name: "Posicionamiento de Marca",
           desc: "Ejecuta el proceso de posicionamiento de 5 fases de ARTO con IA. Brief, Brand Essence, calibración y detección de anti-patrones.",
