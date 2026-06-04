@@ -95,10 +95,40 @@ async function fetchPublishedBlogPosts(): Promise<DynamicPage[]> {
  * wins on slug collision (shouldn't happen because the publisher
  * pre-checks, but the deduper guarantees it).
  */
+/* Merge hardcoded LEARN_PAGES with Content-Factory blog_posts.
+ *
+ * Slug collision policy: the hardcoded entry keeps authority over the SEO
+ * surface (title_en/es, meta_description_*, hero_*, intro_*, use_cases_*,
+ * related_keywords) because those were tuned by hand and shape Google
+ * results. The Content-Factory entry provides the BODY and the BRAND IMAGE
+ * (body_en/es, image_url, image_brief) which the hardcoded entries don't
+ * carry. The result: /learn/branding etc keep their SEO-tuned hero + intro
+ * AND gain a 400-word body + a brand-faithful hero image, both managed
+ * from /admin/content.
+ *
+ * Slugs that exist only in content_items keep the dynamic entry verbatim
+ * (Content-Factory-born blogs that don't shadow a hardcoded vertical). */
+function mergeHardcodedAndDynamic(
+  hardcoded: LearnPageConfig,
+  dynamic: DynamicPage,
+): LearnPageConfig {
+  return {
+    ...hardcoded,
+    body_en: dynamic.body_en ?? hardcoded.body_en,
+    body_es: dynamic.body_es ?? hardcoded.body_es,
+    image_url: dynamic.image_url ?? hardcoded.image_url,
+    image_brief: dynamic.image_brief ?? hardcoded.image_brief,
+  };
+}
+
 export async function getAllLearnPages(): Promise<LearnPageConfig[]> {
   const dynamic = await fetchPublishedBlogPosts();
+  const dynamicBySlug = new Map(dynamic.map((d) => [d.slug, d]));
   const seen = new Set(LEARN_PAGES.map((p) => p.slug));
-  const merged: LearnPageConfig[] = [...LEARN_PAGES];
+  const merged: LearnPageConfig[] = LEARN_PAGES.map((h) => {
+    const d = dynamicBySlug.get(h.slug);
+    return d ? mergeHardcodedAndDynamic(h, d) : h;
+  });
   for (const d of dynamic) {
     if (seen.has(d.slug)) continue;
     merged.push(d as LearnPageConfig);
@@ -108,14 +138,21 @@ export async function getAllLearnPages(): Promise<LearnPageConfig[]> {
 }
 
 /**
- * Returns one page by slug. Tries the hardcoded list first (faster, no
- * DB hit), then falls back to dynamic.
+ * Returns one page by slug. If the slug exists in BOTH the hardcoded
+ * vertical guides and as a Content-Factory blog_post, the SEO surface
+ * from hardcoded is merged with body + image from the blog_post (see
+ * mergeHardcodedAndDynamic). If only one source has it, that wins.
  */
 export async function getLearnPageBySlug(slug: string): Promise<LearnPageConfig | null> {
   const hardcoded = LEARN_PAGES.find((p) => p.slug === slug);
-  if (hardcoded) return hardcoded;
   const dynamic = await fetchPublishedBlogPosts();
-  return (dynamic.find((p) => p.slug === slug) as LearnPageConfig | undefined) ?? null;
+  const dynamicMatch = dynamic.find((p) => p.slug === slug);
+  if (hardcoded && dynamicMatch) {
+    return mergeHardcodedAndDynamic(hardcoded, dynamicMatch);
+  }
+  if (hardcoded) return hardcoded;
+  if (dynamicMatch) return dynamicMatch as LearnPageConfig;
+  return null;
 }
 
 /**
