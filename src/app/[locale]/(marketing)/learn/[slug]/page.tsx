@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,6 +60,28 @@ function splitParagraphs(body: string): string[] {
     .split(/\n{2,}/)
     .map((para) => para.replace(/\s+/g, " ").trim())
     .filter((para) => para.length > 0);
+}
+
+/* Parse markdown bold (**text**) in a paragraph string. Returns a flat
+ * array of React nodes — plain strings interleaved with <strong>. Used
+ * so the generator can mark load-bearing phrases without us needing a
+ * full markdown engine. We DO NOT support any other syntax (no italics,
+ * no links, no headings) to keep the input surface narrow. */
+function renderWithBold(para: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  // Greedy match of **...** with non-greedy inner; reject empty or
+  // accidental triple-star.
+  const re = /\*\*([^*][^*]*?)\*\*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(para)) !== null) {
+    if (m.index > i) out.push(para.slice(i, m.index));
+    out.push(<strong key={key++}>{m[1]}</strong>);
+    i = m.index + m[0].length;
+  }
+  if (i < para.length) out.push(para.slice(i));
+  return out.length > 0 ? out : [para];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -126,7 +149,9 @@ export default async function LearnSlugPage({ params }: Props) {
         return (
           <div className="mt-6 space-y-4 text-neutral-700">
             {paras.map((para, i) => (
-              <p key={i} className="leading-relaxed">{para}</p>
+              <p key={i} className="leading-relaxed">
+                {renderWithBold(para)}
+              </p>
             ))}
           </div>
         );

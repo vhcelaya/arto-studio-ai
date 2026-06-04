@@ -129,7 +129,12 @@ Constraints:
 - meta_description 120-160 chars
 - hero: one strong headline (under 80 chars)
 - intro: 80-160 words, sets up what the AI can do in this vertical in 2026 (this is the article opener, the hook)
-- body: **HARD MINIMUM 500 words in EACH language, target 700-800 words.** Server-side rejection for under 500. Editorial article body. Structure as 5-8 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). EACH paragraph 80-120 words. EDITORIAL FLOW MANDATORY: every paragraph develops ONE idea across 3-6 sentences with connectors and varied sentence length. NO runs of three short declarative sentences. NO paragraphs that are lists of claims. Read it back to yourself after writing: if any paragraph sounds like "Subject verb object. Subject verb object. Subject verb object." rewrite it. Name concrete tools (Claude, Midjourney, ElevenLabs, Figma, Notion, Linear), techniques (positioning matrix, NOT-table, brand spine), brands (Neefter, Crecy, Google, Nike, Uber) when relevant. Walk through methodology step by step. Show mechanism, not conclusion. Avoid "in conclusion", "in summary", "ultimately", "at the end of the day". Do NOT repeat the intro — the body advances the thesis. The last paragraph ends on a claim or a question, not a recap. Before submitting, count your own words: if body_en or body_es is under 500, expand it BEFORE returning.
+- body: **HARD MINIMUM 400 words in EACH language, target 400-500 words.** Server-side rejection for under 400. Editorial article body. Structure as 4-5 paragraphs separated by ONE blank line each (literal \\n\\n in the JSON string). EACH paragraph 80-120 words. EDITORIAL FLOW MANDATORY: every paragraph develops ONE idea across 3-6 sentences with connectors and varied sentence length. NO runs of three short declarative sentences. NO paragraphs that are lists of claims. Read it back to yourself after writing: if any paragraph sounds like "Subject verb object. Subject verb object. Subject verb object." rewrite it. Name concrete tools (Claude, Midjourney, ElevenLabs, Figma, Notion, Linear), techniques (positioning matrix, NOT-table, brand spine), brands (Neefter, Crecy, Google, Nike, Uber) when relevant. Walk through methodology step by step. Show mechanism, not conclusion. Avoid "in conclusion", "in summary", "ultimately", "at the end of the day". Do NOT repeat the intro — the body advances the thesis. The last paragraph ends on a claim or a question, not a recap.
+
+BOLD KEY PHRASES — mandatory in body.
+Inside body_en and body_es, mark 2-4 load-bearing phrases per paragraph in markdown bold using **double asterisks** around the phrase. Example in Spanish: "El brief tradicional asumía un destinatario humano que podía **leer entre líneas**. Cuando trabajas con Claude, esa ambigüedad **se convierte en error**." Each bolded phrase must be a CONCEPT or a CLAIM the reader should skim and grasp at a glance, not stylistic emphasis. Avoid bolding common adverbs, conjunctions, single nouns out of context, or full sentences. Each bolded run is 2-7 words. Distribute bold phrases across the paragraph, not clustered at the end. The bolded phrases are part of the reading rhythm and must read sensibly when extracted (a skimmer should be able to read JUST the bolded phrases and get the gist of the paragraph).
+
+Before submitting, count your own words: if body_en or body_es is under 400, expand it BEFORE returning.
 - use_cases: 4-6 concrete situations where an operator uses prompts in this vertical
 
 IMAGE BRIEF — chosen by you, the writer.
@@ -344,7 +349,7 @@ export async function POST(request: NextRequest) {
    * Reject anything below the floor so the dashboard never accumulates
    * thin articles. Both languages must meet the bar, otherwise the
    * operator sees a rejection with the actual count and can regenerate. */
-  const BLOG_BODY_MIN_WORDS = 500;
+  const BLOG_BODY_MIN_WORDS = 400;
   const countWords = (s: unknown) => typeof s === "string" ? s.trim().split(/\s+/).filter(Boolean).length : 0;
   const lengthScrubKept: typeof voiced.kept = [];
   const lengthScrubRejected: typeof voiced.rejected = [];
