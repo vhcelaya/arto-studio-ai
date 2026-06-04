@@ -30,6 +30,8 @@ export default async function PricingPage({ params }: Props) {
   if (!isLocale(localeParam)) notFound();
   const locale = localeParam as Locale;
   const t = getDictionary(locale).pricing;
+  // FAQ copy is shared with the homepage (lives in the `home` dict block).
+  const faqDict = getDictionary(locale).home;
   const lp = (p: string) => `/${locale}${p.startsWith("/") ? p : "/" + p}`;
 
   // Build the 4 tiers from the dictionary. Keep styling and CTA targets in
@@ -94,6 +96,7 @@ export default async function PricingPage({ params }: Props) {
       <div className="mb-12 text-center">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t.h1}</h1>
         <p className="mx-auto mt-3 max-w-lg text-neutral-600">{t.sub}</p>
+        <p className="mx-auto mt-4 max-w-xl text-sm text-neutral-500">{t.value_note}</p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -185,6 +188,22 @@ export default async function PricingPage({ params }: Props) {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* FAQ — shared purchase-friction questions, native accordion */}
+      <div className="mt-16 border-t border-neutral-200 pt-16">
+        <h2 className="mb-8 text-center text-2xl font-bold tracking-tight">{faqDict.faq_h2}</h2>
+        <div className="mx-auto max-w-3xl divide-y divide-neutral-200">
+          {faqDict.faq.map((item) => (
+            <details key={item.q} className="group py-4">
+              <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-medium text-neutral-900 marker:content-none">
+                {item.q}
+                <span className="text-neutral-400 transition group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-neutral-600">{item.a}</p>
+            </details>
+          ))}
         </div>
       </div>
     </div>
