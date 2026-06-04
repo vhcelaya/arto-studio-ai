@@ -376,7 +376,7 @@ export const DICTIONARIES = {
     nav: {
       products: "Productos",
       work: "Trabajo",
-      learn: "Blog",
+      learn: "Aprende",
       pricing: "Precios",
       sign_in: "Entrar",
       account: "Cuenta",
